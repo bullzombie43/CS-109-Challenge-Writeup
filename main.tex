@@ -253,6 +253,9 @@ Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd person
     \label{fig:confusion_matrices_all_methods}
 \end{figure}
 
+\subsection*{The Future of Deepfake Detection}
+The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++. A lot better than ours huh? Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 200 videos, 100 deepfakes and 100 real, and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but I thought it was an interesting exercise in classifiers and I learned a lot!
+
 \begin{figure}
     \centering
     \includegraphics[width=0.85\linewidth]{images/roc_comparison_all_methods.png}
@@ -273,9 +276,6 @@ Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd person
     \caption{Example face segmentation output from the OpenCV Haar Cascade detector. The tighter bounding box (15\% inset left/right, 10\% top, 20\% bottom) focuses on the core face region, reducing contamination from hair and neck.}
     \label{fig:segmentation}
 \end{figure}
-
-\subsection*{The Future of Deepfake Detection}
-The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++. A lot better than ours huh? Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 200 videos, 100 deepfakes and 100 real, and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but I thought it was an interesting exercise in classifiers and I learned a lot!
 
 \newpage
 \appendix
