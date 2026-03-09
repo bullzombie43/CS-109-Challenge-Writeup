@@ -15,10 +15,10 @@
 
 \maketitle
 
-If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your english teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{Heres a deepfake I made of myself in less than 5 minutes} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
+If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{Heres a deepfake I made of myself in less than 5 minutes} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
 
 \subsection*{Methods and Scope}
-There are dozens of different approaches to create deepfakes, some of which include: Generative Adversial Networks and Encoder-Decoder Networks for aceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{add their citation} benchmark dataset.
+There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{add their citation} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
 Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often times deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{what is DCT} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{what is MAD} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That being said if you are interested in what each feature is, and how I came to use them (I spent a lot of time testing different features) I will include a writeup at the end.
@@ -27,7 +27,7 @@ Deepfaked Videos and images, while difficult to spot with the human eye, often l
 Naive Bayes is a machine learning algorithm for classification which makes the assumption that all features are independent of each other. With any classification\footnote{for all our equations we are assuming that y is binary ie. $y={0,1}$ as a video can only be a deepfake or not a deepfake} algorithm, we seek to choose the value $y$ that maximizes $P(Y = y | X = X)$. 
 \begin{equation}
 \begin{aligned}
-\hat y &= \text{arg max} \ P(Y = | X = X) \\
+\hat y &= \text{arg max} \ P(Y = y | X = x) \\
 &= \text{arg max} \ \frac{P(Y = y)P(X = x | Y = y)}{P(X = x)} \\
 &= \text{arg max} \ P(Y = y)P(X = x | Y = y) \text{(since $P(X=x)$ is a constant w.r.t. $Y$}
 \end{aligned}
@@ -43,7 +43,7 @@ Naive Bayes makes the incorrect assumption that each characteristic $x$ is indep
 
 \subsubsection*{Maximum Likelihood Estimation}
 
-With equation 2 we can estimate the probability of a deepfake if we have the probablilities of each feature for both deepfakes and normal videos, but how will we get those? This is where the "training" part of our model is introduced. Essentially for both deepfakes and normal videos we will create a probability distribution of each feature $x_i$. To calculate each $P(X_i = x_i | Y =y)$ we will use the probability mass function of these distributions. To find these distributions, we will employ a technique, Maximum Likelihood Estimation\footnote{MLE makes the assumption that are data is identically distributed}, where we will choose values for our parameters $\theta$ that maximize the likelihood of our data. 
+With equation 2 we can estimate the probability of a deepfake if we have the probablilities of each feature for both deepfakes and normal videos, but how will we get those? This is where the "training" part of our model is introduced. Essentially for both deepfakes and normal videos we will create a probability distribution of each feature $x_i$. To calculate each $P(X_i = x_i | Y =y)$ we will use the probability mass function of these distributions. To find these distributions, we will employ a technique, Maximum Likelihood Estimation\footnote{MLE makes the assumption that our data is identically distributed}, where we will choose values for our parameters $\theta$ that maximize the likelihood of our data. 
 
 \begin{equation}
 \begin{aligned}
@@ -52,7 +52,7 @@ L(\theta) = \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
 \end{aligned}
 \end{equation}
 
-Because log is a monotone function\footnote{what does this mean}, the argmax of our log likehood it will be equal to the argmax of our likelihood simplifying the math.
+Because log is a monotone function\footnote{what does this mean}, the argmax of our log likelihood will be equal to the argmax of our likelihood simplifying the math.
 
 \begin{equation}
 \begin{aligned}
@@ -67,7 +67,7 @@ To use MLE we must guess at the underlying distribution of our features. MLE is 
 \begin{figure}
     \centering
     \includegraphics[width=16cm]{images/f5_distribution_all_fits.png}
-    \caption{A visiualization for our f5 feature and how a guassian vs gamma vs KDE assumption fits it for both real and deepfaked videos.}
+    \caption{A visualization of our f5 feature and how a Gaussian vs Gamma vs KDE assumption fits it for both real and deepfaked videos.}
     \label{fig:gamma_vs_guassian_visualized}
 \end{figure}
 
@@ -104,7 +104,7 @@ which actually matches our data better than both versions of MLE. Kernel Density
 \footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf}, or KDE, is a non-parametric density
 estimation technique, meaning unlike MLE it makes no assumption about the underlying distribution of our data. Instead,
 KDE constructs a smooth estimate of the PDF by placing a \textit{kernel} --- a small symmetric bump function --- centered
-at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor it's underlying assumption about independance, it only changes how we estimate the probability of each given feature}
+at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor its underlying assumption about independence, it only changes how we estimate the probability of each given feature}
 
 \begin{equation}
 \hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
@@ -155,7 +155,7 @@ LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 -
 We use the gradient descent algorithm\footnote{link to gradient descent explanation} to estimate parameters($\theta$) that maximize our likelihood.
 
 \subsubsection*{Youden's J Threshold}
-If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{What is platt scaling}. You want to calibrate your model such that it's output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and stumbled upon Youden's J Threshold. 
+If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{What is platt scaling}. You want to calibrate your model such that its output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and stumbled upon Youden's J Threshold. 
 
 Once we have our posterior probability estimates from Bayes' theorem, we must choose a decision threshold $\tau$ such 
 that we classify a video as a deepfake if $P(Y = 1 | \mathbf{x}) > \tau$. The naive choice of $\tau = 0.5$ is not 
@@ -243,7 +243,7 @@ In both categories the KDE version of our Naive Bayes model performed better tha
 
 It's intriguing that depending on our feature set (f5 or all) we have two different top methods, both with an accuracy of 0.688: KDE-NB for just f5 and Logistic Regression for all 5 features. The loss in accuracy, 0.051, of KDE-NB when we introduce all the features suggests that the independence assumption of Naive Bayes may be heavily violated-- our features are highly related, to such an extent that including other features reduces our accuracy noticeably. Looking at the figures 2 we can see that we have a nearly double false positive rate when including all features for KDE-NB which makes sense as the independence assumption means we are essentially double counting the likelihood of each feature. 
 
-Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd personally give the edge to logistic regression based on it's higher ($0.037$) AUC, indicating it has a stronger ability to distinguish between classes, and that it might perform better than KDE-NB on a larger testing set.  
+Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd personally give the edge to logistic regression based on its higher ($0.037$) AUC, indicating it has a stronger ability to distinguish between classes, and that it might perform better than KDE-NB on a larger testing set.  
 
 
 \begin{figure}

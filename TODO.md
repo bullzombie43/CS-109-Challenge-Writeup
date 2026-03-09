@@ -5,7 +5,7 @@
 - [ ] **Add LLM usage disclosure** — project rules require explaining how you used GPT-4/LLMs
 - [ ] **Fill or delete empty `Arg Max` section** (line 101) — likely intended to show the final argmax decision combining prior + likelihoods
 - [ ] **Fix dataset size** (line 251) — says "100 deepfakes and 100 real" but actual is 200 real + 200 deepfake (400 total), ~320 train / 80 test
-- [ ] **Fix math typo** (line 30) — `P(Y = | X = X)` → `P(Y = y | X = x)`
+- [x] **Fix math typo** (line 30) — `P(Y = | X = X)` → `P(Y = y | X = x)`
 
 ---
 
@@ -29,14 +29,14 @@
 
 ## Typos & Grammar
 
-- [ ] Line 18 — "aceswaps" → "faceswaps"
-- [ ] Line 18 — "english teacher" → "English teacher"
-- [ ] Line 21 — "Generative Adversial" → "Generative Adversarial"
-- [ ] Line 46 — "are data" → "our data"
-- [ ] Line 55 — "likehood" → "likelihood"
-- [ ] Line 131 — "independance" → "independence"
-- [ ] Line 158 — "it's output probabilities" → "its output probabilities"
-- [ ] Line 240 — "it's higher AUC" → "its higher AUC"
+- [x] Line 18 — "aceswaps" → "faceswaps"
+- [x] Line 18 — "english teacher" → "English teacher"
+- [x] Line 21 — "Generative Adversial" → "Generative Adversarial"
+- [x] Line 46 — "are data" → "our data"
+- [x] Line 55 — "likehood" → "likelihood"
+- [x] Line 131 — "independance" → "independence"
+- [x] Line 158 — "it's output probabilities" → "its output probabilities"
+- [x] Line 240 — "it's higher AUC" → "its higher AUC"
 
 ---
 
