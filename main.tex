@@ -249,5 +249,104 @@ Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd person
 
 \subsection*{The Future of Deepfake Detection}
 The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++. A lot better than ours huh? Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 200 videos, 100 deepfakes and 100 real, and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but I thought it was an interesting exercise in classifiers and I learned a lot!
+
+\newpage
+\appendix
+\section{Feature Descriptions}
+
+For every video in the dataset I extract 5 scalar features. Each feature compares a \textit{face region} to a \textit{background region} within the same frame. The face is detected with OpenCV's Haar Cascade classifier, and the bounding box is tightened by 15\% on the left and right, 10\% on the top, and 20\% on the bottom to focus on the core face and reduce hair/neck contamination. The background is the remainder of the frame after removing the (un-tightened) bounding box. Ten frames are sampled uniformly from each video, and per-frame feature values are averaged to produce a single video-level feature vector.
+
+\subsection*{f1 — DCT Chi-Squared Divergence}
+
+\textbf{Intuition.} FaceSwap pastes a synthetically generated face onto an unmodified background. The face region has been processed through at least one additional encode-decode cycle, so its frequency-domain content should look systematically different from the native background.
+
+\textbf{Computation.} Both the face crop and the background region are converted to grayscale and a 2D Discrete Cosine Transform (DCT) is applied to each. The DCT expresses an image patch as a sum of cosine waves at different spatial frequencies; compression artifacts show up as anomalies in the coefficient magnitudes. We then build a 50-bin normalized histogram of the DCT coefficients for each region:
+
+\[
+  P_k = \frac{\text{count}(\text{face coefficients in bin } k)}{\text{total face coefficients}}, \quad
+  Q_k = \frac{\text{count}(\text{background coefficients in bin } k)}{\text{total background coefficients}}
+\]
+
+The chi-squared divergence between these two distributions is the feature:
+
+\[
+  f_1 = \chi^2(P, Q) = \sum_{k=1}^{50} \frac{(P_k - Q_k)^2}{P_k + Q_k + \varepsilon}
+\]
+
+A log transform ($\log(1 + f_1)$) is applied at training time to correct the heavy right skew of the raw values.
+
+\subsection*{f2 — Block-DCT $\beta$-Statistic Divergence}
+
+\textbf{Intuition.} JPEG and video codecs compress images in $8\times 8$ pixel blocks using the DCT. When a face region is re-encoded (as happens in FaceSwap), each AC coefficient position accumulates a different amount of quantization noise than the surrounding background. This changes the \textit{scale} of the coefficient distribution at each AC position in a measurable way, even on lossless (c0) source files where the original compression is preserved.
+
+\textbf{Computation.} The face and background regions are each divided into non-overlapping $8\times8$ pixel blocks. A 2D DCT is applied to every block. For each of the 63 AC coefficient positions (the DC component at position 0 is skipped because it simply encodes average brightness), we collect the coefficient values across all blocks and compute the scale parameter:
+
+\[
+  \beta_j = \frac{\text{std}(\{c_{b,j} : b = 1,\ldots,B\})}{\sqrt{2}}, \quad j = 1, \ldots, 63
+\]
+
+This gives two 63-dimensional vectors, $\boldsymbol{\beta}^{\text{face}}$ and $\boldsymbol{\beta}^{\text{bg}}$. The feature is the mean absolute difference across all positions:
+
+\[
+  f_2 = \frac{1}{63} \sum_{j=1}^{63} \left| \beta_j^{\text{face}} - \beta_j^{\text{bg}} \right|
+\]
+
+This approach is based on Giudice et al.\ (2021)\footnote{Giudice et al., ``Fighting Deepfakes by Detecting GAN DCT Anomalies'', \textit{MDPI Journal of Imaging}, 2021.}. A log transform is applied at training time.
+
+\subsection*{f3 — Absolute Difference of Mean Absolute DCT Coefficients}
+
+\textbf{Intuition.} AI face synthesis often introduces a slight blurring or smoothing of the face relative to the original. In the frequency domain, blurring suppresses high-frequency coefficients, reducing the average coefficient magnitude. If the face is blurrier than the background we expect the mean absolute DCT coefficient to be lower for the face than for the background.
+
+\textbf{Computation.} Full-image 2D DCTs are applied to the grayscale face and background patches. The mean of the absolute values of all coefficients is computed for each:
+
+\[
+  \mu_{\text{face}} = \frac{1}{MN}\sum_{u,v} |F_{\text{face}}[u,v]|, \quad
+  \mu_{\text{bg}} = \frac{1}{M'N'}\sum_{u,v} |F_{\text{bg}}[u,v]|
+\]
+
+The feature is:
+
+\[
+  f_3 = |\mu_{\text{face}} - \mu_{\text{bg}}|
+\]
+
+A log transform is applied at training time.
+
+\subsection*{f4 — Frame-to-Frame Temporal Inconsistency}
+
+\textbf{Intuition.} FaceSwap estimates the warp for each frame independently, which introduces small jitter in the pasted face from one frame to the next that does not follow the smooth natural motion of a real face. We should therefore see higher frame-to-frame pixel variation in the face region of deepfakes than in real videos.
+
+\textbf{Computation.} Consecutive pairs of sampled frames $(t, t+1)$ are used. Each face crop is resized to $64\times64$, converted to grayscale, and mean-normalized to remove global lighting drift:
+
+\[
+  \tilde{I}_t = \frac{I_t}{\text{mean}(I_t) + \varepsilon}
+\]
+
+The Mean Absolute Deviation (MAD) between consecutive normalized crops is computed, then averaged across all pairs:
+
+\[
+  f_4 = \frac{1}{T-1} \sum_{t=1}^{T-1} \frac{1}{64^2}\sum_{i,j}\left|\tilde{I}_t[i,j] - \tilde{I}_{t+1}[i,j]\right|
+\]
+
+where $T = 10$ is the number of sampled frames. No log transform is applied to $f_4$.
+
+\subsection*{f5 — Laplacian Variance Ratio}
+
+\textbf{Intuition.} FaceSwap applies a blending and sharpening step when compositing the generated face onto the background frame. This introduces ringing and edge-enhancement artifacts in the face region that raise its apparent sharpness above that of the surrounding (unmodified) background. The Laplacian filter is the standard tool for measuring image sharpness, since it amplifies rapid intensity changes (edges, texture, ringing).
+
+\textbf{Computation.} The discrete Laplacian operator $\nabla^2$ is applied to the grayscale face and background:
+
+\[
+  \nabla^2 f[i,j] = f[i+1,j] + f[i-1,j] + f[i,j+1] + f[i,j-1] - 4f[i,j]
+\]
+
+The feature is the ratio of their variances:
+
+\[
+  f_5 = \frac{\text{Var}(\nabla^2 I_{\text{face}})}{\text{Var}(\nabla^2 I_{\text{bg}}) + \varepsilon}
+\]
+
+Higher $f_5$ means the face is sharper (or more artifact-laden) relative to the background. A log transform is applied at training time. $f_5$ was by far the strongest individual discriminator, achieving the best standalone AUC (0.683) of all five features.
+
 \end{document}
 
