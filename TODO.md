@@ -4,7 +4,7 @@
 
 - [ ] **Add LLM usage disclosure** — project rules require explaining how you used GPT-4/LLMs
 - [ ] **Fill or delete empty `Arg Max` section** (line 101) — likely intended to show the final argmax decision combining prior + likelihoods
-- [ ] **Fix dataset size** (line 251) — says "100 deepfakes and 100 real" but actual is 200 real + 200 deepfake (400 total), ~320 train / 80 test
+- [x] **Fix dataset size** (line 251) — says "100 deepfakes and 100 real" but actual is 200 real + 200 deepfake (400 total), ~320 train / 80 test
 - [x] **Fix math typo** (line 30) — `P(Y = | X = X)` → `P(Y = y | X = x)`
 
 ---
@@ -13,7 +13,7 @@
 
 - [ ] Line 18 — `(I wonder what's the percentage is???)` — find a stat or remove
 - [ ] Line 18 — `\footnote{Find Link}` for LeBron video — add link or remove
-- [x] Line 18 — `\footnote{Heres a deepfake I made...}` — cleaned up to descriptive text
+- [ ] Line 18 — `\footnote{Heres a deepfake I made...}` — cleaned up to descriptive text
 - [x] Line 21 — `\footnote{add their citation}` for FaceForensics++ — Rössler et al., ICCV 2019
 - [x] Line 24 — `\footnote{what is DCT}` — added brief explanation
 - [x] Line 24 — `\footnote{what is MAD}` — added brief explanation
