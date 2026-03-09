@@ -15,13 +15,13 @@
 
 \maketitle
 
-If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{Heres a deepfake I made of myself in less than 5 minutes} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
+If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{The author made this deepfake of himself using Viggle AI in under 5 minutes, requiring only a photo and a source video to animate.} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
 
 \subsection*{Methods and Scope}
-There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{add their citation} benchmark dataset.
+There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{Rössler et al., ``FaceForensics++: Learning to Detect Manipulated Facial Images,'' \textit{ICCV}, 2019.} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
-Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often times deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{what is DCT} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{what is MAD} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That being said if you are interested in what each feature is, and how I came to use them (I spent a lot of time testing different features) I will include a writeup at the end.
+Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often times deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{Discrete Cosine Transform --- a technique that expresses an image patch as a weighted sum of cosine waves at increasing spatial frequencies. It is the mathematical core of JPEG and most video compression standards (H.264, H.265).} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{Mean Absolute Deviation --- the average of the absolute pixel-wise differences between two image patches, measuring how much they differ per pixel on average.} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That being said if you are interested in what each feature is, and how I came to use them (I spent a lot of time testing different features) I will include a writeup at the end.
 
 \subsection*{Naive Bayes}
 Naive Bayes is a machine learning algorithm for classification which makes the assumption that all features are independent of each other. With any classification\footnote{for all our equations we are assuming that y is binary ie. $y={0,1}$ as a video can only be a deepfake or not a deepfake} algorithm, we seek to choose the value $y$ that maximizes $P(Y = y | X = X)$. 
@@ -52,7 +52,7 @@ L(\theta) = \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
 \end{aligned}
 \end{equation}
 
-Because log is a monotone function\footnote{what does this mean}, the argmax of our log likelihood will be equal to the argmax of our likelihood simplifying the math.
+Because log is a monotone function\footnote{A monotonically increasing function preserves order: if $a > b$ then $f(a) > f(b)$. Because $\log$ is monotone increasing, $\arg\max_\theta \log L(\theta) = \arg\max_\theta L(\theta)$, so maximising the log-likelihood gives the same parameter estimates as maximising the likelihood directly.}, the argmax of our log likelihood will be equal to the argmax of our likelihood simplifying the math.
 
 \begin{equation}
 \begin{aligned}
@@ -62,7 +62,7 @@ LL(\theta) &= \log L(\theta) \\
 \end{aligned}
 \end{equation}
 
-To use MLE we must guess at the underlying distribution of our features. MLE is compatible any distribution provided you can define it's PDF and PMF. I started by assuming most my features were normal, however after examining the graphed data I also tried a Gamma\footnote{link to gamma} distribution. 
+To use MLE we must guess at the underlying distribution of our features. MLE is compatible any distribution provided you can define it's PDF and PMF. I started by assuming most my features were normal, however after examining the graphed data I also tried a Gamma\footnote{The Gamma distribution is a two-parameter continuous distribution supported on $(0, \infty)$, parameterised by shape $\alpha > 0$ and scale $\beta > 0$. It generalises the exponential distribution and can model right-skewed, non-negative data. See \url{https://en.wikipedia.org/wiki/Gamma_distribution}.} distribution. 
 
 \begin{figure}
     \centering
@@ -96,7 +96,7 @@ LL(\theta) &= \sum_{i=1}^n \left[-\log\Gamma(\theta_0) - \theta_0\log\theta_1 + 
 &= -n\log\Gamma(\theta_0) - n\theta_0\log\theta_1 + (\theta_0-1)\sum_{i=1}^n\log x_i - \frac{1}{\theta_1}\sum_{i=1}^n x_i
 \end{aligned}
 \end{equation}
-There is unfortunately no closed form solution for the Gamma MLE estimation, it must instead be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{Here is a link to how scipy implements it}.
+There is unfortunately no closed form solution for the Gamma MLE estimation, it must instead be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gamma.html} --- \texttt{scipy.stats.gamma.fit} uses maximum likelihood estimation via the method of moments as a starting point and then refines numerically using \texttt{scipy.optimize}.}.
 
 \subsubsection*{Kernel Density Estimation}
 If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'',
@@ -152,7 +152,7 @@ LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 -
 \end{aligned}
 \end{equation}
 
-We use the gradient descent algorithm\footnote{link to gradient descent explanation} to estimate parameters($\theta$) that maximize our likelihood.
+We use the gradient descent algorithm\footnote{Gradient descent iteratively updates parameters in the direction of steepest descent of the loss: $\theta \leftarrow \theta - \alpha \nabla_\theta (-LL(\theta))$, where $\alpha$ is the learning rate. Since there is no closed-form solution for the logistic regression MLE, this numerical approach is used instead.} to estimate parameters($\theta$) that maximize our likelihood.
 
 \subsubsection*{Youden's J Threshold}
 If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{What is platt scaling}. You want to calibrate your model such that its output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and stumbled upon Youden's J Threshold. 
@@ -231,13 +231,13 @@ no-discrimination, maximizing the gap between our model's performance and random
   \end{table}
 
 \textbf{Accuracy}: fraction of videos correctly classified. 
-\textbf{AUC}: area under the ROC\footnote{What is ROC?} curve; measures ranking ability independent of threshold.
+\textbf{AUC}: area under the ROC\footnote{Receiver Operating Characteristic curve --- a plot of True Positive Rate (TPR) against False Positive Rate (FPR) at every possible classification threshold. A perfect classifier reaches the top-left corner (TPR=1, FPR=0); the diagonal represents random chance. AUC summarises the entire curve as a single number between 0 and 1.} curve; measures ranking ability independent of threshold.
 \textbf{Precision}: of videos predicted fake, the fraction that are truly fake.
 \textbf{Recall}: of all truly fake videos, the fraction correctly identified. 
 \textbf{F1}: harmonic mean of precision and recall.
 
 
-I divided the results into two categories, one only using f5\footnote{What is f5 again?}, and one using all 5 features. f5 was shown to be our most discriminating feature by far\footnote{What metric}, so I thought it would be interesting to examine how it would perform independently of the other features. 
+I divided the results into two categories, one only using f5\footnote{f5 is the Laplacian variance ratio --- the variance of the Laplacian filter response in the face region divided by that of the background. See the Feature Descriptions appendix for the full derivation.}, and one using all 5 features. f5 was shown to be our most discriminating feature by far\footnote{As measured by AUC (Area Under the ROC Curve): f5 achieved a standalone AUC of 0.683, the highest of all five features.}, so I thought it would be interesting to examine how it would perform independently of the other features. 
 
 In both categories the KDE version of our Naive Bayes model performed better than both the Gaussian and Gamma model, validating our assumption that the data did not fit either parametric model particularly well. Importantly, all 3 methods have nearly identical AUC, suggesting the improvement does not come from the ability to distinguish between classes\footnote{Why?}, but rather from the classification cutoff. 
 

@@ -13,17 +13,17 @@
 
 - [ ] Line 18 — `(I wonder what's the percentage is???)` — find a stat or remove
 - [ ] Line 18 — `\footnote{Find Link}` for LeBron video — add link or remove
-- [ ] Line 18 — `\footnote{Heres a deepfake I made...}` — add actual link or clean up footnote
-- [ ] Line 21 — `\footnote{add their citation}` for FaceForensics++ — add proper citation
-- [ ] Line 24 — `\footnote{what is DCT}` — add a brief explanation
-- [ ] Line 24 — `\footnote{what is MAD}` — add a brief explanation
-- [ ] Line 65 — `\footnote{link to gamma}` — add link or remove
-- [ ] Line 99 — `\footnote{Here is a link to how scipy implements it}` — add link or remove
-- [ ] Line 123 — `\footnote{link to gradient descent explanation}` — add link or remove
-- [ ] Line 228 — `\footnote{What is ROC?}` — add explanation
-- [ ] Line 234 — `\footnote{What is f5 again?}` — cross-reference appendix
-- [ ] Line 234 — `\footnote{What metric}` — specify metric used (AUC)
-- [ ] Line 55 — `\footnote{what does this mean}` for monotone function — explain or remove
+- [x] Line 18 — `\footnote{Heres a deepfake I made...}` — cleaned up to descriptive text
+- [x] Line 21 — `\footnote{add their citation}` for FaceForensics++ — Rössler et al., ICCV 2019
+- [x] Line 24 — `\footnote{what is DCT}` — added brief explanation
+- [x] Line 24 — `\footnote{what is MAD}` — added brief explanation
+- [x] Line 65 — `\footnote{link to gamma}` — added explanation + Wikipedia link
+- [x] Line 99 — `\footnote{Here is a link to how scipy implements it}` — added scipy docs URL
+- [x] Line 123 — `\footnote{link to gradient descent explanation}` — added explanation with update rule
+- [x] Line 228 — `\footnote{What is ROC?}` — added explanation of TPR/FPR curve
+- [x] Line 234 — `\footnote{What is f5 again?}` — added definition + appendix reference
+- [x] Line 234 — `\footnote{What metric}` — specified AUC with value
+- [x] Line 55 — `\footnote{what does this mean}` for monotone function — added explanation with argmax equivalence
 
 ---
 
