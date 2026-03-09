@@ -1,0 +1,253 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\graphicspath{ {./images/} }
+
+
+\title{Real or Fake? Detecting Deepfakes}
+\author{Justin Hollister}
+\date{March 2026}
+
+\begin{document}
+
+\maketitle
+
+If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your english teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{Heres a deepfake I made of myself in less than 5 minutes} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
+
+\subsection*{Methods and Scope}
+There are dozens of different approaches to create deepfakes, some of which include: Generative Adversial Networks and Encoder-Decoder Networks for aceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{add their citation} benchmark dataset.
+
+\subsection*{Qualities of a Deepfake}
+Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often times deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{what is DCT} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{what is MAD} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That being said if you are interested in what each feature is, and how I came to use them (I spent a lot of time testing different features) I will include a writeup at the end.
+
+\subsection*{Naive Bayes}
+Naive Bayes is a machine learning algorithm for classification which makes the assumption that all features are independent of each other. With any classification\footnote{for all our equations we are assuming that y is binary ie. $y={0,1}$ as a video can only be a deepfake or not a deepfake} algorithm, we seek to choose the value $y$ that maximizes $P(Y = y | X = X)$. 
+\begin{equation}
+\begin{aligned}
+\hat y &= \text{arg max} \ P(Y = | X = X) \\
+&= \text{arg max} \ \frac{P(Y = y)P(X = x | Y = y)}{P(X = x)} \\
+&= \text{arg max} \ P(Y = y)P(X = x | Y = y) \text{(since $P(X=x)$ is a constant w.r.t. $Y$}
+\end{aligned}
+\end{equation}
+Naive Bayes makes the incorrect assumption that each characteristic $x$ is independent of one another given y, reducing the space needed from $O(n^2)$ to $O(n)$ if $|x| = n$.
+\begin{equation}
+\begin{aligned}
+\hat y &= \text{arg max} \ P(Y = y)P(X = x | Y = y) \\
+&= \text{arg max} \ P(Y = y)\prod_i P(X_i = x_i | Y = y) \\
+&= \text{arg max} \ \log P(Y = y) + \sum_i \log P(X_i = x_i | Y = y)
+\end{aligned}
+\end{equation}
+
+\subsubsection*{Maximum Likelihood Estimation}
+
+With equation 2 we can estimate the probability of a deepfake if we have the probablilities of each feature for both deepfakes and normal videos, but how will we get those? This is where the "training" part of our model is introduced. Essentially for both deepfakes and normal videos we will create a probability distribution of each feature $x_i$. To calculate each $P(X_i = x_i | Y =y)$ we will use the probability mass function of these distributions. To find these distributions, we will employ a technique, Maximum Likelihood Estimation\footnote{MLE makes the assumption that are data is identically distributed}, where we will choose values for our parameters $\theta$ that maximize the likelihood of our data. 
+
+\begin{equation}
+\begin{aligned}
+L(\theta) = \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
+\hat \theta = \text{arg max} \ L(\theta) 
+\end{aligned}
+\end{equation}
+
+Because log is a monotone function\footnote{what does this mean}, the argmax of our log likehood it will be equal to the argmax of our likelihood simplifying the math.
+
+\begin{equation}
+\begin{aligned}
+LL(\theta) &= \log L(\theta) \\
+&= \log \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
+&= \sum_{i = 1}^n \log f(X_i = x_i | \Theta = \theta)
+\end{aligned}
+\end{equation}
+
+To use MLE we must guess at the underlying distribution of our features. MLE is compatible any distribution provided you can define it's PDF and PMF. I started by assuming most my features were normal, however after examining the graphed data I also tried a Gamma\footnote{link to gamma} distribution. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=16cm]{images/f5_distribution_all_fits.png}
+    \caption{A visiualization for our f5 feature and how a guassian vs gamma vs KDE assumption fits it for both real and deepfaked videos.}
+    \label{fig:gamma_vs_guassian_visualized}
+\end{figure}
+
+\subsubsection{Normal MLE Estimation}
+A Gaussian has two parameters we need to estimate: $\mu = \theta_0, \sigma^2 = \theta_1 $ 
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n f(X_i|\theta) \\
+&= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\theta_1}}e^{-\frac{(x_i-\theta_0)^2}{2\theta_1}} \\
+LL(\theta) &= \sum_{i=1}^n \left[-\log\sqrt{2\pi\theta_1} - \frac{1}{2\theta_1}(x_i - \theta_0)^2\right] \\
+&= -\frac{n}{2}\log(2\pi\theta_1) - \frac{1}{2\theta_1}\sum_{i=1}^n(x_i - \theta_0)^2 \\
+\frac{\partial LL(\theta)}{\partial \theta_0} &= \frac{1}{\theta_1}\sum_{i=1}^n(x_i - \theta_0) = 0
+\implies \hat{\theta}_0 = \frac{1}{n}\sum_{i=1}^n x_i = \bar{x} \\
+\frac{\partial LL(\theta)}{\partial \theta_1} &= -\frac{n}{2\theta_1} + \frac{1}{2\theta_1^2}\sum_{i=1}^n(x_i - \theta_0)^2 = 0
+\implies \hat{\theta}_1 = \frac{1}{n}\sum_{i=1}^n(x_i - \bar{x})^2
+\end{aligned}
+\end{equation}
+
+\subsubsection{Gamma MLE Estimation}
+A Gamma has two parameters we need to estimate: $\alpha = \theta_0, \beta  = \theta_1 $ 
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n f(X_i|\theta) \\
+&= \prod_{i=1}^n \frac{1}{\Gamma(\theta_0)\theta_1^{\theta_0}} x_i^{\theta_0-1} e^{-x_i/\theta_1} \\
+LL(\theta) &= \sum_{i=1}^n \left[-\log\Gamma(\theta_0) - \theta_0\log\theta_1 + (\theta_0-1)\log x_i - \frac{x_i}{\theta_1}\right] \\
+&= -n\log\Gamma(\theta_0) - n\theta_0\log\theta_1 + (\theta_0-1)\sum_{i=1}^n\log x_i - \frac{1}{\theta_1}\sum_{i=1}^n x_i
+\end{aligned}
+\end{equation}
+There is unfortunately no closed form solution for the Gamma MLE estimation, it must instead be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{Here is a link to how scipy implements it}.
+
+\subsubsection*{Arg Max}
+
+\subsection*{Logistic Regression}
+Logistic regression is also a classification algorithm. It makes the central assumption that $P(y|x)$ can be approximated with a sigmoid function applied to a linear combination of input features. 
+\begin{equation}
+\begin{aligned}
+P(Y = 1 | X = x) = \sigma(z) \text{ where } z = \theta_0 + \sum_{i=1}^m \theta_i x_i
+\end{aligned}
+\end{equation}
+Logistic similarly uses MLE to estimate parameters, however it requires the assumption that $Y \sim Bern(p)$ where $p = \sigma(\theta^Tx)$. 
+
+
+\subsubsection*{Bernoulli MLE}
+
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n P(Y = y^{(i)} | X = \mathbf{x}^{(i)}) \\
+&= \prod_{i=1}^n \sigma(\theta^T \mathbf{x}^{(i)})^{y^{(i)}} \cdot \left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]^{(1-y^{(i)})} \\
+LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 - y^{(i)}) \log\left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]
+\end{aligned}
+\end{equation}
+
+We use the gradient descent algorithm\footnote{link to gradient descent explanation} to estimate parameters($\theta$) that maximize our likelihood.
+
+\subsubsection*{Kernel Density Estimation}
+If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'', 
+which actually matches our data better than both versions of MLE. Kernel Density Estimation 
+\footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf}, or KDE, is a non-parametric density 
+estimation technique, meaning unlike MLE it makes no assumption about the underlying distribution of our data. Instead, 
+KDE constructs a smooth estimate of the PDF by placing a \textit{kernel} --- a small symmetric bump function --- centered 
+at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor it's underlying assumption about independance, it only changes how we estimate the probability of each given feature}
+
+\begin{equation}
+\hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
+\end{equation}
+
+where $K$ is the kernel function and $h > 0$ is the \textit{bandwidth}, which controls the smoothness of the estimate. 
+The most common choice is the Gaussian kernel:
+
+\begin{equation}
+K(u) = \frac{1}{\sqrt{2\pi}} e^{-\frac{u^2}{2}}
+\end{equation}
+
+The bandwidth $h$ is the key tuning parameter of KDE\footnote{Too small a bandwidth leads to an overfit, noisy estimate; 
+too large and the estimate is oversmoothed and loses structure}. Scott's rule, which is what we use here, estimates an 
+optimal bandwidth automatically from the data:
+
+\begin{equation}
+h = n^{-1/5} \hat{\sigma}
+\end{equation}
+
+where $\hat{\sigma}$ is the standard deviation of the sample. Once we have our KDE estimate $\hat{f}_h(x)$, we use it 
+directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature.
+
+While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|. 
+
+\subsubsection*{Youden's J Threshold}
+If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{What is platt scaling}. You want to calibrate your model such that it's output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and stumbled upon Youden's J Threshold. 
+
+Once we have our posterior probability estimates from Bayes' theorem, we must choose a decision threshold $\tau$ such 
+that we classify a video as a deepfake if $P(Y = 1 | \mathbf{x}) > \tau$. The naive choice of $\tau = 0.5$ is not 
+always optimal, particularly in the presence of class imbalance. Instead, we use Youden's J Statistic 
+\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.} to select the 
+threshold that best balances sensitivity and specificity:
+
+\begin{equation}
+J = \text{Sensitivity} + \text{Specificity} - 1 = \text{TPR} - \text{FPR}
+\end{equation}
+
+where TPR (True Positive Rate) and FPR (False Positive Rate) are defined as:
+
+\begin{equation}
+\text{TPR} = \frac{TP}{TP + FN} \qquad \text{FPR} = \frac{FP}{FP + TN}
+\end{equation}
+
+The optimal threshold is then chosen as:
+
+\begin{equation}
+\hat{\tau} = \underset{\tau}{\text{arg max}} \ J(\tau) = \underset{\tau}{\text{arg max}} \ [\text{TPR}(\tau) - \text{FPR}(\tau)]
+\end{equation}
+
+Geometrically, this corresponds to finding the point on the ROC curve that is furthest from the diagonal line of 
+no-discrimination, maximizing the gap between our model's performance and random chance.
+
+\subsection*{Results}
+
+\subsubsection*{f5 only:}
+
+  \begin{table}[h]
+  \centering
+  \begin{tabular}{lccccc}
+  \hline
+  \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} &
+  \textbf{Recall} & \textbf{F1} \\
+  \hline
+  KDE-NB          & \textbf{0.688} & \textbf{0.683} & \textbf{0.742} & 0.575 &
+  0.648 \\
+  Logistic Reg.   & 0.588 & 0.680 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
+  Gaussian NB     & 0.588 & 0.680 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
+  Gamma NB        & 0.588 & 0.671 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
+  \hline
+  \end{tabular}
+  \caption{Results comparison — f5 only (n=80 test videos).}
+  \label{tab:results_f5}
+  \end{table}
+
+\subsubsection*{All 5 features:}
+
+  \begin{table}[h]
+  \centering
+  \begin{tabular}{lccccc}
+  \hline
+  \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} &
+  \textbf{Recall} & \textbf{F1} \\
+  \hline
+  Logistic Reg.   & \textbf{0.688} & \textbf{0.720} & \textbf{0.674} &
+  \textbf{0.725} & \textbf{0.699} \\
+  KDE-NB          & 0.637 & 0.670 & 0.628 & 0.675 & 0.651 \\
+  Gaussian NB     & 0.600 & 0.666 & 0.580 & 0.725 & 0.644 \\
+  Gamma NB        & 0.588 & 0.655 & 0.569 & 0.725 & 0.637 \\
+  \hline
+  \end{tabular}
+  \caption{Results comparison — all 5 features (n=80 test videos).}
+  \label{tab:results_all5}
+  \end{table}
+
+\textbf{Accuracy}: fraction of videos correctly classified. 
+\textbf{AUC}: area under the ROC\footnote{What is ROC?} curve; measures ranking ability independent of threshold.
+\textbf{Precision}: of videos predicted fake, the fraction that are truly fake.
+\textbf{Recall}: of all truly fake videos, the fraction correctly identified. 
+\textbf{F1}: harmonic mean of precision and recall.
+
+
+I divided the results into two categories, one only using f5\footnote{What is f5 again?}, and one using all 5 features. f5 was shown to be our most discriminating feature by far\footnote{What metric}, so I thought it would be interesting to examine how it would perform independently of the other features. 
+
+In both categories the KDE version of our Naive Bayes model performed better than both the Gaussian and Gamma model, validating our assumption that the data did not fit either parametric model particularly well. Importantly, all 3 methods have nearly identical AUC, suggesting the improvement does not come from the ability to distinguish between classes\footnote{Why?}, but rather from the classification cutoff. 
+
+It's intriguing that depending on our feature set (f5 or all) we have two different top methods, both with an accuracy of 0.688: KDE-NB for just f5 and Logistic Regression for all 5 features. The loss in accuracy, 0.051, of KDE-NB when we introduce all the features suggests that the independence assumption of Naive Bayes may be heavily violated-- our features are highly related, to such an extent that including other features reduces our accuracy noticeably. Looking at the figures 2 we can see that we have a nearly double false positive rate when including all features for KDE-NB which makes sense as the independence assumption means we are essentially double counting the likelihood of each feature. 
+
+Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd personally give the edge to logistic regression based on it's higher ($0.037$) AUC, indicating it has a stronger ability to distinguish between classes, and that it might perform better than KDE-NB on a larger testing set.  
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{images/confusion_matrices_all_methods.png}
+    \caption{The confusion matrices of every method}
+    \label{fig:confusion_matrices_all_methods}
+\end{figure}
+
+\subsection*{The Future of Deepfake Detection}
+The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++. A lot better than ours huh? Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 200 videos, 100 deepfakes and 100 real, and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but I thought it was an interesting exercise in classifiers and I learned a lot!
+\end{document}
+
