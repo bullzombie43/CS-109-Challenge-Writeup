@@ -54,7 +54,7 @@ a
 ## Nice to Have
 
 - [ ] Add a short **Dataset section** — describe FF++, why c0 vs c23 matters, 200+200 split
-- [ ] Switch to **BibTeX** for citations instead of footnotes (at minimum for FF++)
+- [x] Switch to **BibTeX** for citations instead of footnotes (at minimum for FF++) — references.bib created, FF++ uses \cite{rossler2019faceforensics}
 - [ ] Add a feature distribution plot for a second feature to illustrate NB degradation with correlated features
 - [x] Add a **ROC comparison plot** (f5-only vs all-features) — done via roc_comparison_all_methods.png
 - [ ] Tighten tone consistency — intro is casual with unfinished thoughts; decide on a voice and clean up

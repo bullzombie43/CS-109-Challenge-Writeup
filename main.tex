@@ -4,6 +4,7 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage[numbers]{natbib}
 \graphicspath{ {./images/} }
 
 
@@ -18,7 +19,7 @@
 If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{The author made this deepfake of himself using Viggle AI in under 5 minutes, requiring only a photo and a source video to animate.} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
 
 \subsection*{Methods and Scope}
-There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++\footnote{Rössler et al., ``FaceForensics++: Learning to Detect Manipulated Facial Images,'' \textit{ICCV}, 2019.} benchmark dataset.
+There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
 Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often times deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{Discrete Cosine Transform --- a technique that expresses an image patch as a weighted sum of cosine waves at increasing spatial frequencies. It is the mathematical core of JPEG and most video compression standards (H.264, H.265).} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{Mean Absolute Deviation --- the average of the absolute pixel-wise differences between two image patches, measuring how much they differ per pixel on average.} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That being said if you are interested in what each feature is, and how I came to use them (I spent a lot of time testing different features) I will include a writeup at the end.
@@ -375,6 +376,9 @@ The feature is the ratio of their variances:
 \]
 
 Higher $f_5$ means the face is sharper (or more artifact-laden) relative to the background. A log transform is applied at training time. $f_5$ was by far the strongest individual discriminator, achieving the best standalone AUC (0.683) of all five features.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 \end{document}
 
