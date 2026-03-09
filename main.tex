@@ -98,6 +98,38 @@ LL(\theta) &= \sum_{i=1}^n \left[-\log\Gamma(\theta_0) - \theta_0\log\theta_1 + 
 \end{equation}
 There is unfortunately no closed form solution for the Gamma MLE estimation, it must instead be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{Here is a link to how scipy implements it}.
 
+\subsubsection*{Kernel Density Estimation}
+If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'',
+which actually matches our data better than both versions of MLE. Kernel Density Estimation
+\footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf}, or KDE, is a non-parametric density
+estimation technique, meaning unlike MLE it makes no assumption about the underlying distribution of our data. Instead,
+KDE constructs a smooth estimate of the PDF by placing a \textit{kernel} --- a small symmetric bump function --- centered
+at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor it's underlying assumption about independance, it only changes how we estimate the probability of each given feature}
+
+\begin{equation}
+\hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
+\end{equation}
+
+where $K$ is the kernel function and $h > 0$ is the \textit{bandwidth}, which controls the smoothness of the estimate.
+The most common choice is the Gaussian kernel:
+
+\begin{equation}
+K(u) = \frac{1}{\sqrt{2\pi}} e^{-\frac{u^2}{2}}
+\end{equation}
+
+The bandwidth $h$ is the key tuning parameter of KDE\footnote{Too small a bandwidth leads to an overfit, noisy estimate;
+too large and the estimate is oversmoothed and loses structure}. Scott's rule, which is what we use here, estimates an
+optimal bandwidth automatically from the data:
+
+\begin{equation}
+h = n^{-1/5} \hat{\sigma}
+\end{equation}
+
+where $\hat{\sigma}$ is the standard deviation of the sample. Once we have our KDE estimate $\hat{f}_h(x)$, we use it
+directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature.
+
+While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|.
+
 \subsubsection*{Arg Max}
 
 \subsection*{Logistic Regression}
@@ -121,38 +153,6 @@ LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 -
 \end{equation}
 
 We use the gradient descent algorithm\footnote{link to gradient descent explanation} to estimate parameters($\theta$) that maximize our likelihood.
-
-\subsubsection*{Kernel Density Estimation}
-If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'', 
-which actually matches our data better than both versions of MLE. Kernel Density Estimation 
-\footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf}, or KDE, is a non-parametric density 
-estimation technique, meaning unlike MLE it makes no assumption about the underlying distribution of our data. Instead, 
-KDE constructs a smooth estimate of the PDF by placing a \textit{kernel} --- a small symmetric bump function --- centered 
-at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor it's underlying assumption about independance, it only changes how we estimate the probability of each given feature}
-
-\begin{equation}
-\hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
-\end{equation}
-
-where $K$ is the kernel function and $h > 0$ is the \textit{bandwidth}, which controls the smoothness of the estimate. 
-The most common choice is the Gaussian kernel:
-
-\begin{equation}
-K(u) = \frac{1}{\sqrt{2\pi}} e^{-\frac{u^2}{2}}
-\end{equation}
-
-The bandwidth $h$ is the key tuning parameter of KDE\footnote{Too small a bandwidth leads to an overfit, noisy estimate; 
-too large and the estimate is oversmoothed and loses structure}. Scott's rule, which is what we use here, estimates an 
-optimal bandwidth automatically from the data:
-
-\begin{equation}
-h = n^{-1/5} \hat{\sigma}
-\end{equation}
-
-where $\hat{\sigma}$ is the standard deviation of the sample. Once we have our KDE estimate $\hat{f}_h(x)$, we use it 
-directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature.
-
-While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|. 
 
 \subsubsection*{Youden's J Threshold}
 If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{What is platt scaling}. You want to calibrate your model such that it's output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and stumbled upon Youden's J Threshold. 
