@@ -18,7 +18,7 @@
 
 If you have spent time on social media in the last few months you have almost certainly (I wonder what's the percentage is???) encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron\footnote{Find Link}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{The author made this deepfake of himself using Viggle AI in under 5 minutes, requiring only a photo and a source video to animate.} it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I hope to explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
 
-\subsection*{Methods and Scope}
+\subsection*{Methods and Data}
 There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
@@ -278,6 +278,9 @@ Overall, while KDE-NB and Logistic Regression have the same accuracy, I'd person
 \clearpage
 \subsection*{The Future of Deepfake Detection}
 The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++. A lot better than ours huh? Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 320 videos (200 deepfakes and 200 real total, 80/20 train/test split) and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but I thought it was an interesting exercise in classifiers and I learned a lot!
+
+\subsection*{LLM Usage}
+I used LLMs, specifically Claude Code's Sonnet 4.6, to help me program much of first version of the code. All of the feature extraction code is done by LLM, as like I mentioned in the writeup, my focus was on the classification methods, and much of the detail of each features are outside my domain of knowledge (the require in depth knowledge about image processing and compression and more). I tested dozens of variations of features, and used LLMs to quickly implement features to test and verify the accuracy before I devoted too much time into anything. I also used LLMs to generate the initial code for classification, again to verify the approach and accuracy, before going back through and rewriting functions that used libraries such as \verb|scipy| and \verb|sklearn|, with my own implementations. I also used LLM's to refine this paper (ie. check for typos, errors, shorten my argument to reach 3 pages etc.). 
 
 \newpage
 \appendix
