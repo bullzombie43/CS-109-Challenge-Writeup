@@ -26,78 +26,36 @@ If you have spent time on social media in the last few months you have almost ce
 Deepfaked videos, while difficult to spot with the human eye, often leave traces that computers can pick up on --- differences in compression artifacts, sharpness, and color grading between the synthetic face region and the unmodified background. For every video I extracted 5 features exploiting these differences (see Appendix~\ref{app:features} for full details).
 
 \subsection*{Naive Bayes}
-Naive Bayes is a machine learning algorithm for classification which makes the assumption that all features are independent of each other. With any classification\footnote{for all our equations we are assuming that y is binary ie. $y={0,1}$ as a video can only be a deepfake or not a deepfake} algorithm, we seek to choose the value $y$ that maximizes $P(Y = y | X = X)$. 
-\begin{equation}
-\begin{aligned}
-\hat y &= \text{arg max} \ P(Y = y | X = x) \\
-&= \text{arg max} \ \frac{P(Y = y)P(X = x | Y = y)}{P(X = x)} \\
-&= \text{arg max} \ P(Y = y)P(X = x | Y = y) \text{(since $P(X=x)$ is a constant w.r.t. $Y$}
-\end{aligned}
-\end{equation}
-Naive Bayes makes the incorrect assumption that each characteristic $x$ is independent of one another given y, reducing the space needed from $O(n^2)$ to $O(n)$ if $|x| = n$.
-\begin{equation}
-\begin{aligned}
-\hat y &= \text{arg max} \ P(Y = y)P(X = x | Y = y) \\
-&= \text{arg max} \ P(Y = y)\prod_i P(X_i = x_i | Y = y) \\
-&= \text{arg max} \ \log P(Y = y) + \sum_i \log P(X_i = x_i | Y = y)
-\end{aligned}
-\end{equation}
+Naive Bayes was a natural first choice for this problem: my dataset is small (320 training videos), the algorithm is interpretable, and each feature captures a distinct artifact type --- compression differences, sharpness, temporal jitter --- so the independence assumption is at least defensible. The classifier works by choosing the label $y$ that maximises $P(Y = y \mid X = x)$, breaking the joint likelihood into a product of per-feature terms (one distribution per feature per class) and comparing them in log-space. See Appendix~\ref{app:derivations} for the full derivation.\footnote{Throughout, $y \in \{0, 1\}$: 0 = real, 1 = deepfake.}
+
+The central question is how to estimate each per-feature, per-class distribution --- that is where MLE and KDE come in.
 
 \subsubsection*{Maximum Likelihood Estimation}
 
-With equation 2 we can estimate the probability of a deepfake if we have the probabilities of each feature for both deepfakes and normal videos, but where do those come from? This is where the "training" part of our model is introduced. Essentially for both deepfakes and normal videos we will create a probability distribution of each feature $x_i$. To calculate each $P(X_i = x_i | Y =y)$ we will use the probability mass function of these distributions. To find these distributions, we will employ a technique, Maximum Likelihood Estimation\footnote{MLE makes the assumption that our data is identically distributed}, where we will choose values for our parameters $\theta$ that maximize the likelihood of our data. 
+MLE chooses the distribution parameters $\hat\theta$ that make the observed training data most probable, applied separately to each feature for each class. See Appendix~\ref{app:derivations} for the derivation.
 
-\begin{equation}
-\begin{aligned}
-L(\theta) = \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
-\hat \theta = \text{arg max} \ L(\theta) 
-\end{aligned}
-\end{equation}
-
-Because log is monotone\footnote{A monotonically increasing function preserves order: if $a > b$ then $f(a) > f(b)$. Because $\log$ is monotone increasing, $\arg\max_\theta \log L(\theta) = \arg\max_\theta L(\theta)$, so maximising the log-likelihood gives the same parameter estimates as maximising the likelihood directly.}, we maximise $LL(\theta) = \sum_{i=1}^n \log f(X_i = x_i | \Theta = \theta)$ instead, which converts the product into a tractable sum.
-
-To use MLE we must guess at the underlying distribution of our features. I started by assuming most of my features were normal, however after examining the data I also tried a Gamma\footnote{The Gamma distribution is a two-parameter continuous distribution supported on $(0, \infty)$, parameterised by shape $\alpha > 0$ and scale $\beta > 0$. It generalises the exponential distribution and can model right-skewed, non-negative data. See \url{https://en.wikipedia.org/wiki/Gamma_distribution}.} distribution (see Figure~\ref{fig:gamma_vs_guassian_visualized} in the appendix).
-
-\subsubsection*{Normal MLE Estimation}
-For a Gaussian, MLE yields closed-form estimates: the optimal $\mu$ is the sample mean and the optimal $\sigma^2$ is the sample variance (see Appendix~\ref{app:derivations}).
-
-\subsubsection*{Gamma MLE Estimation}
-For a Gamma distribution there is no closed-form MLE solution; parameters must be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gamma.html} --- \texttt{scipy.stats.gamma.fit} uses maximum likelihood estimation via the method of moments as a starting point and then refines numerically using \texttt{scipy.optimize}.} (see Appendix~\ref{app:derivations}).
+The first decision is which distribution family to assume. All five features are non-negative and right-skewed, so I evaluated two options. I started with a \textbf{Gaussian} --- the simplest and most common choice --- but a Gaussian assigns probability mass to negative values and tends to underestimate the heavy tail. I therefore also tried a \textbf{Gamma} distribution, which is supported on $(0, \infty)$ and naturally handles right-skewed data. For the Gaussian, MLE yields the sample mean and variance in closed form; for the Gamma there is no closed-form solution so I used \verb|scipy.stats.gamma.fit| instead. As Figure~\ref{fig:gamma_vs_guassian_visualized} shows, neither family fits the actual distributions particularly well --- which motivated the approach below.
 
 \subsubsection*{Kernel Density Estimation}
-If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'',
-which actually matches our data better than both versions of MLE. Kernel Density Estimation
-\footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf}, or KDE, is a non-parametric density
-estimation technique, meaning unlike MLE it makes no assumption about the underlying distribution of our data. Instead,
-KDE constructs a smooth estimate of the PDF by placing a \textit{kernel} --- a small symmetric bump function --- centered
-at each data point and summing them together.\footnote{KDE does not change how Naive Bayes works nor its underlying assumption about independence, it only changes how we estimate the probability of each given feature}
+Since neither parametric family fit the data well, I turned to Kernel Density Estimation (KDE)\footnote{https://faculty.washington.edu/yenchic/17Sp\_403/Lec7-density.pdf} --- a non-parametric density estimator that makes no assumption about the underlying distribution. Instead of fitting parameters to a fixed family, KDE places a small symmetric bump function (\textit{kernel}) at each training point and sums them into a smooth density estimate:\footnote{KDE does not change how Naive Bayes works nor its independence assumption --- it only changes how we estimate $P(X_i = x_i \mid Y = y)$.}
 
 \begin{equation}
 \hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
 \end{equation}
 
-where $K$ is the kernel function (we use a Gaussian) and $h > 0$ is the bandwidth\footnote{Too small a bandwidth leads to an overfit, noisy estimate; too large and the estimate is oversmoothed and loses structure}, set automatically via Scott's rule ($h = n^{-1/5}\hat{\sigma}$, where $\hat{\sigma}$ is the sample standard deviation). Once we have our KDE estimate $\hat{f}_h(x)$, we use it directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature. See Appendix~\ref{app:derivations} for the full kernel and bandwidth details.
-
-While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|.
+where $K$ is a Gaussian kernel and $h$ is the bandwidth, set automatically via Scott's rule ($h = n^{-1/5}\hat{\sigma}$)\footnote{Too small an $h$ leads to an overfit, noisy estimate; too large and it is oversmoothed. Scott's rule balances these extremes without manual tuning.}. The resulting density estimate $\hat{f}_h(x)$ is plugged directly into the Naive Bayes log-likelihood in place of the parametric PDF. I applied it per class per feature using \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|. See Appendix~\ref{app:derivations} for the full kernel and bandwidth details.
 
 \subsection*{Logistic Regression}
-Logistic regression is also a classification algorithm. It makes the central assumption that $P(y|x)$ can be approximated with a sigmoid function applied to a linear combination of input features. 
-\begin{equation}
-\begin{aligned}
-P(Y = 1 | X = x) = \sigma(z) \text{ where } z = \theta_0 + \sum_{i=1}^m \theta_i x_i
-\end{aligned}
-\end{equation}
-\subsubsection*{Bernoulli MLE}
-Logistic regression assumes $Y \sim \text{Bern}(\sigma(\theta^T \mathbf{x}))$ and maximises the resulting log-likelihood. Since no closed-form solution exists, parameters are estimated via gradient descent\footnote{Gradient descent iteratively updates parameters in the direction of steepest descent of the loss: $\theta \leftarrow \theta - \alpha \nabla_\theta (-LL(\theta))$, where $\alpha$ is the learning rate.}. See Appendix~\ref{app:derivations} for the full derivation.
+After running Naive Bayes I wanted to see whether relaxing the independence assumption would help. My five features all capture compression and sharpness artifacts, so they are inevitably correlated --- Naive Bayes double-counts that shared evidence every time a new feature is added. Logistic regression learns a single linear decision boundary directly over all features jointly, avoiding this problem entirely. It assumes the outcome is Bernoulli and maximises the resulting log-likelihood via gradient descent; since no closed-form solution exists, weights are estimated numerically. See Appendix~\ref{app:derivations} for the full derivation.
 
 \subsubsection*{Youden's J Threshold}
-If our model produces a probability $P(\text{fake} | X = x)$, how do we decide what counts as ``fake''? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores could be systematically biased towards one side. A common solution is to calibrate your model with a method such as Platt's scaling\footnote{Platt scaling fits a sigmoid function to the raw output scores of a classifier using a held-out calibration set, transforming them into calibrated probabilities that better reflect the true likelihood of each class.}. I was interested in a simpler fix and came across Youden's J Statistic\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.}, which selects the threshold $\tau$ that maximises:
+Both methods output a probability $P(\text{fake} \mid X = x)$, and I noticed the raw scores were not well-centered at 0.5 --- using a fixed 0.5 cutoff was leaving performance on the table. Rather than a full calibration procedure like Platt's scaling\footnote{Platt scaling fits a sigmoid to the raw output scores on a held-out calibration set.}, I used Youden's J Statistic\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.}: sweep every candidate threshold on the training scores and pick the one that maximises
 
 \begin{equation}
 J = \text{TPR} - \text{FPR}
 \end{equation}
 
-Geometrically, this is the point on the ROC curve furthest from the diagonal of no-discrimination. See Appendix~\ref{app:derivations} for the full definitions and argmax formulation.
+Geometrically, this is the point on the ROC curve furthest from the diagonal of no-discrimination. The threshold found on the training set is then applied as-is at test time. See Appendix~\ref{app:derivations} for full definitions.
 
 \subsection*{Results}
 
