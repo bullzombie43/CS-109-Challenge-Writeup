@@ -16,13 +16,10 @@
 
 \maketitle
 
-If you have spent time on social media in the last few months you have almost certainly encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron \footnote{https://www.tiktok.com/@ikrrrrbwi81alt/video/7598717828409068855}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{It took <5 min to make a deepfake. I used an animated character but this could just as easily have been a person https://viggle.ai/share/436f2b0d-14e5-4705-9ea4-2078e33d2c76 } it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression.
-
-\subsection*{Methods and Data}
-There are dozens of different approaches to create deepfakes, some of which include: Generative Adversarial Networks and Encoder-Decoder Networks for faceswaps, mesh/landmark based and end to end models for face reenactment, diffusion models for full face generation and much more. Every method leaves its own form of traces, so it is difficult to generalize a single model to detect all types of deepfakes. For my project I focused on deepfakes of faces specifically, training for and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
+If you have spent time on social media in the last few months you have almost certainly encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron \footnote{https://www.tiktok.com/@ikrrrrbwi81alt/video/7598717828409068855}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{It took <5 min to make a deepfake. I used an animated character but this could just as easily have been a person https://viggle.ai/share/436f2b0d-14e5-4705-9ea4-2078e33d2c76 } it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression, training and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
-Deepfaked Videos and images, while difficult to spot with the human eye, often leave traces that computers can pick up on. Often, deepfaked videos, especially those made by Viggle, will overlay two videos on top of each other. If we compare the face region of a video with the background the compression artifacts and color grading may be different. Between frames the color grading of a face is also likely to vary more in a deepfake then with a normal video. For every video I extracted 5 features which should, in theory, differ between deepfaked and normal videos: DCT\footnote{Discrete Cosine Transform --- a technique that expresses an image patch as a weighted sum of cosine waves at increasing spatial frequencies. It is the mathematical core of JPEG and most video compression standards (H.264, H.265).} divergence between face and background, block-DCT divergence for compression differences, mean difference between DCT coefficients, frame to frame MAD\footnote{Mean Absolute Deviation --- the average of the absolute pixel-wise differences between two image patches, measuring how much they differ per pixel on average.} of face crops, and laplacian variance ratio of face and background. This paper is focusing on the techniques used to analyze these features, as such the specifics of the features themselves is not important, it is sufficient to assume that differences in each of these values exists between deepfakes and normal videos. That said, if you are interested in the specifics of each feature and how I came to use them, I include detailed descriptions in the appendix.
+Deepfaked videos, while difficult to spot with the human eye, often leave traces that computers can pick up on --- differences in compression artifacts, sharpness, and color grading between the synthetic face region and the unmodified background. For every video I extracted 5 features exploiting these differences (see Appendix~\ref{app:features} for full details).
 
 \subsection*{Naive Bayes}
 Naive Bayes is a machine learning algorithm for classification which makes the assumption that all features are independent of each other. With any classification\footnote{for all our equations we are assuming that y is binary ie. $y={0,1}$ as a video can only be a deepfake or not a deepfake} algorithm, we seek to choose the value $y$ that maximizes $P(Y = y | X = X)$. 
@@ -53,24 +50,9 @@ L(\theta) = \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
 \end{aligned}
 \end{equation}
 
-Because log is a monotone function\footnote{A monotonically increasing function preserves order: if $a > b$ then $f(a) > f(b)$. Because $\log$ is monotone increasing, $\arg\max_\theta \log L(\theta) = \arg\max_\theta L(\theta)$, so maximising the log-likelihood gives the same parameter estimates as maximising the likelihood directly.}, the argmax of our log likelihood will be equal to the argmax of our likelihood simplifying the math.
+Because log is monotone\footnote{A monotonically increasing function preserves order: if $a > b$ then $f(a) > f(b)$. Because $\log$ is monotone increasing, $\arg\max_\theta \log L(\theta) = \arg\max_\theta L(\theta)$, so maximising the log-likelihood gives the same parameter estimates as maximising the likelihood directly.}, we maximise $LL(\theta) = \sum_{i=1}^n \log f(X_i = x_i | \Theta = \theta)$ instead, which converts the product into a tractable sum.
 
-\begin{equation}
-\begin{aligned}
-LL(\theta) &= \log L(\theta) \\
-&= \log \prod_{i=1}^n f(X_i = x_i | \Theta = \theta) \\
-&= \sum_{i = 1}^n \log f(X_i = x_i | \Theta = \theta)
-\end{aligned}
-\end{equation}
-
-To use MLE we must guess at the underlying distribution of our features. MLE is compatible any distribution provided you can define it's PDF and PMF. I started by assuming most of my features were normal, however after examining the graphed data I also tried a Gamma\footnote{The Gamma distribution is a two-parameter continuous distribution supported on $(0, \infty)$, parameterised by shape $\alpha > 0$ and scale $\beta > 0$. It generalises the exponential distribution and can model right-skewed, non-negative data. See \url{https://en.wikipedia.org/wiki/Gamma_distribution}.} distribution. 
-
-\begin{figure}
-    \centering
-    \includegraphics[width=16cm]{images/f5_distribution_all_fits.png}
-    \caption{A visualization of our f5 feature and how a Gaussian vs Gamma vs KDE assumption fits it for both real and deepfaked videos.}
-    \label{fig:gamma_vs_guassian_visualized}
-\end{figure}
+To use MLE we must guess at the underlying distribution of our features. I started by assuming most of my features were normal, however after examining the data I also tried a Gamma\footnote{The Gamma distribution is a two-parameter continuous distribution supported on $(0, \infty)$, parameterised by shape $\alpha > 0$ and scale $\beta > 0$. It generalises the exponential distribution and can model right-skewed, non-negative data. See \url{https://en.wikipedia.org/wiki/Gamma_distribution}.} distribution (see Figure~\ref{fig:gamma_vs_guassian_visualized} in the appendix).
 
 \subsubsection*{Normal MLE Estimation}
 For a Gaussian, MLE yields closed-form estimates: the optimal $\mu$ is the sample mean and the optimal $\sigma^2$ is the sample variance (see Appendix~\ref{app:derivations}).
@@ -134,7 +116,7 @@ Geometrically, this is the point on the ROC curve furthest from the diagonal of 
   Random          & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 \\
   \hline
   \end{tabular}
-  \caption{Results comparison — f5 only (n=80 test videos). Baselines: \textit{Majority class} always predicts ``fake''; \textit{Random} flips a fair coin per video.}
+  \caption{Results comparison — f5 only (n=80 test videos). \textit{Accuracy}: fraction correctly classified. \textit{AUC}: area under the ROC curve, measures ranking ability independent of threshold. \textit{Precision}: of predicted fakes, fraction truly fake. \textit{Recall}: of all true fakes, fraction caught. \textit{F1}: harmonic mean of precision and recall. Baselines: \textit{Majority class} always predicts ``fake''; \textit{Random} flips a fair coin per video. See Appendix~\ref{app:figures} for confusion matrices and ROC curves.}
   \label{tab:results_f5}
   \end{table}
 
@@ -161,11 +143,6 @@ Geometrically, this is the point on the ROC curve furthest from the diagonal of 
   \label{tab:results_all5}
   \end{table}
 
-\textbf{Accuracy}: fraction of videos correctly classified. 
-\textbf{AUC}: area under the ROC\footnote{Receiver Operating Characteristic curve --- a plot of True Positive Rate (TPR) against False Positive Rate (FPR) at every possible classification threshold. A perfect classifier reaches the top-left corner (TPR=1, FPR=0); the diagonal represents random chance. AUC summarises the entire curve as a single number between 0 and 1.} curve; measures ranking ability independent of threshold.
-\textbf{Precision}: of videos predicted fake, the fraction that are truly fake.
-\textbf{Recall}: of all truly fake videos, the fraction correctly identified. 
-\textbf{F1}: harmonic mean of precision and recall.
 
 
 I divided the results into two categories, one only using f5\footnote{f5 is the Laplacian variance ratio --- the variance of the Laplacian filter response in the face region divided by that of the background. See the Feature Descriptions appendix for the full derivation.}, and one using all 5 features. f5 was shown to be our most discriminating feature by far\footnote{As measured by AUC (Area Under the ROC Curve): f5 achieved a standalone AUC of 0.683, the highest of all five features.}, so I thought it would be interesting to examine how it would perform independently of the other features. 
@@ -179,35 +156,6 @@ Logistic regression does not have this issue. It doesn't assume each feature ind
 Overall, while KDE-NB and Logistic Regression have the same accuracy, I give the edge to logistic regression based on its higher ($0.037$) AUC, indicating it has a stronger ability to distinguish between classes, and that it might perform better than KDE-NB on a larger testing set.  
 
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.75\linewidth]{images/confusion_matrices_all_methods.png}
-    \caption{Confusion matrices for all methods (rows: f5-only and all-5-features configurations). Each cell shows the count out of 80 test videos. Note the higher false-positive rate when KDE-NB uses all five features, consistent with the NB independence assumption being violated.}
-    \label{fig:confusion_matrices_all_methods}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.85\linewidth]{images/roc_comparison_all_methods.png}
-    \caption{ROC curves for all methods and feature configurations. The diagonal dashed line represents random chance (AUC = 0.500). Logistic Regression with all five features achieves the highest AUC (0.720), while all methods substantially outperform the random baseline regardless of feature set.}
-    \label{fig:roc_all_methods}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.75\linewidth]{images/score_distribution_f5.png}
-    \caption{Posterior score distributions ($P(\text{fake} \mid \mathbf{x})$) for the KDE-NB classifier using f5 only. Real videos (blue) are concentrated near 0 and deepfakes (orange) near 1, with meaningful separation despite overlap. The vertical dashed line marks the Youden's J threshold ($\tau \approx 0.513$).}
-    \label{fig:score_distribution_f5}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.75\linewidth]{images/segmentation_test.png}
-    \caption{Example face segmentation output from the OpenCV Haar Cascade detector. The tighter bounding box (15\% inset left/right, 10\% top, 20\% bottom) focuses on the core face region, reducing contamination from hair and neck.}
-    \label{fig:segmentation}
-\end{figure}
-
-\clearpage
 \subsection*{The Future of Deepfake Detection}
 The best result we were able to achieve was an accuracy of 68.8 percent, meaning we still misidentify over 30 percent of videos. Our model did not treat a false positive or false negative differently, though one might argue that in the field of deepfake detection a false negative, falsely classifying a deepfaked video as real, to be much more harmful. Modern deepfake detection systems generally use deep learning to achieve accuracies above 99 percent on benchmarks like FF++ --- substantially better than our 68.8\%. Most of these deep learning models operate directly on pixels (or a combination) rather than through predefined features like ours, which requires significantly more training data. I trained my model on 320 videos (200 deepfakes and 200 real total, 80/20 train/test split) and tested on 80 videos of an even split. For reference FF++ has 5000 videos total, and other datasets have far more. My model is far from effective, but it was a genuinely interesting exercise in probabilistic classifiers.
 
@@ -217,6 +165,7 @@ I used LLMs, specifically Claude Code's Sonnet 4.6, to help me program much of f
 \newpage
 \appendix
 \section{Feature Descriptions}
+\label{app:features}
 
 For every video in the dataset I extract 5 scalar features. Each feature compares a \textit{face region} to a \textit{background region} within the same frame. The face is detected with OpenCV's Haar Cascade classifier, and the bounding box is tightened by 15\% on the left and right, 10\% on the top, and 20\% on the bottom to focus on the core face and reduce hair/neck contamination. The background is the remainder of the frame after removing the (un-tightened) bounding box. Ten frames are sampled uniformly from each video, and per-frame feature values are averaged to produce a single video-level feature vector.
 
@@ -311,6 +260,45 @@ The feature is the ratio of their variances:
 \]
 
 Higher $f_5$ means the face is sharper (or more artifact-laden) relative to the background. A log transform is applied at training time. $f_5$ was by far the strongest individual discriminator, achieving the best standalone AUC (0.683) of all five features.
+
+\newpage
+\section{Figures}
+\label{app:figures}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/f5_distribution_all_fits.png}
+    \caption{Distribution of the f5 feature (Laplacian variance ratio) for real and deepfaked videos, with Gaussian, Gamma, and KDE fits overlaid. KDE most closely matches the actual data shape, motivating its use over parametric MLE.}
+    \label{fig:gamma_vs_guassian_visualized}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{images/confusion_matrices_all_methods.png}
+    \caption{Confusion matrices for all methods (rows: f5-only and all-5-features configurations). Each cell shows the count out of 80 test videos. Note the higher false-positive rate when KDE-NB uses all five features, consistent with the NB independence assumption being violated.}
+    \label{fig:confusion_matrices_all_methods}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/roc_comparison_all_methods.png}
+    \caption{ROC curves for all methods and feature configurations. The diagonal dashed line represents random chance (AUC = 0.500). Logistic Regression with all five features achieves the highest AUC (0.720), while all methods substantially outperform the random baseline regardless of feature set.}
+    \label{fig:roc_all_methods}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{images/score_distribution_f5.png}
+    \caption{Posterior score distributions ($P(\text{fake} \mid \mathbf{x})$) for the KDE-NB classifier using f5 only. Real videos (blue) are concentrated near 0 and deepfakes (orange) near 1, with meaningful separation despite overlap. The vertical dashed line marks the Youden's J threshold ($\tau \approx 0.513$).}
+    \label{fig:score_distribution_f5}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{images/segmentation_test.png}
+    \caption{Example face segmentation output from the OpenCV Haar Cascade detector. The tighter bounding box (15\% inset left/right, 10\% top, 20\% bottom) focuses on the core face region, reducing contamination from hair and neck.}
+    \label{fig:segmentation}
+\end{figure}
 
 \newpage
 \section{Mathematical Derivations}
