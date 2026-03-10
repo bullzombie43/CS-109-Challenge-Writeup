@@ -73,31 +73,10 @@ To use MLE we must guess at the underlying distribution of our features. MLE is 
 \end{figure}
 
 \subsubsection*{Normal MLE Estimation}
-A Gaussian has two parameters we need to estimate: $\mu = \theta_0, \sigma^2 = \theta_1 $ 
-\begin{equation}
-\begin{aligned}
-L(\theta) &= \prod_{i=1}^n f(X_i|\theta) \\
-&= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\theta_1}}e^{-\frac{(x_i-\theta_0)^2}{2\theta_1}} \\
-LL(\theta) &= \sum_{i=1}^n \left[-\log\sqrt{2\pi\theta_1} - \frac{1}{2\theta_1}(x_i - \theta_0)^2\right] \\
-&= -\frac{n}{2}\log(2\pi\theta_1) - \frac{1}{2\theta_1}\sum_{i=1}^n(x_i - \theta_0)^2 \\
-\frac{\partial LL(\theta)}{\partial \theta_0} &= \frac{1}{\theta_1}\sum_{i=1}^n(x_i - \theta_0) = 0
-\implies \hat{\theta}_0 = \frac{1}{n}\sum_{i=1}^n x_i = \bar{x} \\
-\frac{\partial LL(\theta)}{\partial \theta_1} &= -\frac{n}{2\theta_1} + \frac{1}{2\theta_1^2}\sum_{i=1}^n(x_i - \theta_0)^2 = 0
-\implies \hat{\theta}_1 = \frac{1}{n}\sum_{i=1}^n(x_i - \bar{x})^2
-\end{aligned}
-\end{equation}
+For a Gaussian, MLE yields closed-form estimates: the optimal $\mu$ is the sample mean and the optimal $\sigma^2$ is the sample variance (see Appendix~\ref{app:derivations}).
 
 \subsubsection*{Gamma MLE Estimation}
-A Gamma has two parameters we need to estimate: $\alpha = \theta_0, \beta  = \theta_1 $ 
-\begin{equation}
-\begin{aligned}
-L(\theta) &= \prod_{i=1}^n f(X_i|\theta) \\
-&= \prod_{i=1}^n \frac{1}{\Gamma(\theta_0)\theta_1^{\theta_0}} x_i^{\theta_0-1} e^{-x_i/\theta_1} \\
-LL(\theta) &= \sum_{i=1}^n \left[-\log\Gamma(\theta_0) - \theta_0\log\theta_1 + (\theta_0-1)\log x_i - \frac{x_i}{\theta_1}\right] \\
-&= -n\log\Gamma(\theta_0) - n\theta_0\log\theta_1 + (\theta_0-1)\sum_{i=1}^n\log x_i - \frac{1}{\theta_1}\sum_{i=1}^n x_i
-\end{aligned}
-\end{equation}
-There is unfortunately no closed form solution for the Gamma MLE estimation, it must instead be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gamma.html} --- \texttt{scipy.stats.gamma.fit} uses maximum likelihood estimation via the method of moments as a starting point and then refines numerically using \texttt{scipy.optimize}.}.
+For a Gamma distribution there is no closed-form MLE solution; parameters must be estimated numerically. I used \verb|scipy.stats.gamma.fit|\footnote{\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gamma.html} --- \texttt{scipy.stats.gamma.fit} uses maximum likelihood estimation via the method of moments as a starting point and then refines numerically using \texttt{scipy.optimize}.} (see Appendix~\ref{app:derivations}).
 
 \subsubsection*{Kernel Density Estimation}
 If you looked closely at figure 1 earlier, you may have noticed the existence of a third line of fit ``KDE (Scott)'',
@@ -111,23 +90,7 @@ at each data point and summing them together.\footnote{KDE does not change how N
 \hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^n K\!\left(\frac{x - x_i}{h}\right)
 \end{equation}
 
-where $K$ is the kernel function and $h > 0$ is the \textit{bandwidth}, which controls the smoothness of the estimate.
-The most common choice is the Gaussian kernel:
-
-\begin{equation}
-K(u) = \frac{1}{\sqrt{2\pi}} e^{-\frac{u^2}{2}}
-\end{equation}
-
-The bandwidth $h$ is the key tuning parameter of KDE\footnote{Too small a bandwidth leads to an overfit, noisy estimate;
-too large and the estimate is oversmoothed and loses structure}. Scott's rule, which is what we use here, estimates an
-optimal bandwidth automatically from the data:
-
-\begin{equation}
-h = n^{-1/5} \hat{\sigma}
-\end{equation}
-
-where $\hat{\sigma}$ is the standard deviation of the sample. Once we have our KDE estimate $\hat{f}_h(x)$, we use it
-directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature.
+where $K$ is the kernel function (we use a Gaussian) and $h > 0$ is the bandwidth\footnote{Too small a bandwidth leads to an overfit, noisy estimate; too large and the estimate is oversmoothed and loses structure}, set automatically via Scott's rule ($h = n^{-1/5}\hat{\sigma}$, where $\hat{\sigma}$ is the sample standard deviation). Once we have our KDE estimate $\hat{f}_h(x)$, we use it directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y = y)$ for each feature. See Appendix~\ref{app:derivations} for the full kernel and bandwidth details.
 
 While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|.
 
@@ -138,48 +101,17 @@ Logistic regression is also a classification algorithm. It makes the central ass
 P(Y = 1 | X = x) = \sigma(z) \text{ where } z = \theta_0 + \sum_{i=1}^m \theta_i x_i
 \end{aligned}
 \end{equation}
-Logistic similarly uses MLE to estimate parameters, however it requires the assumption that $Y \sim Bern(p)$ where $p = \sigma(\theta^Tx)$. 
-
-
 \subsubsection*{Bernoulli MLE}
-
-\begin{equation}
-\begin{aligned}
-L(\theta) &= \prod_{i=1}^n P(Y = y^{(i)} | X = \mathbf{x}^{(i)}) \\
-&= \prod_{i=1}^n \sigma(\theta^T \mathbf{x}^{(i)})^{y^{(i)}} \cdot \left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]^{(1-y^{(i)})} \\
-LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 - y^{(i)}) \log\left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]
-\end{aligned}
-\end{equation}
-
-We use the gradient descent algorithm\footnote{Gradient descent iteratively updates parameters in the direction of steepest descent of the loss: $\theta \leftarrow \theta - \alpha \nabla_\theta (-LL(\theta))$, where $\alpha$ is the learning rate. Since there is no closed-form solution for the logistic regression MLE, this numerical approach is used instead.} to estimate parameters($\theta$) that maximize our likelihood.
+Logistic regression assumes $Y \sim \text{Bern}(\sigma(\theta^T \mathbf{x}))$ and maximises the resulting log-likelihood. Since no closed-form solution exists, parameters are estimated via gradient descent\footnote{Gradient descent iteratively updates parameters in the direction of steepest descent of the loss: $\theta \leftarrow \theta - \alpha \nabla_\theta (-LL(\theta))$, where $\alpha$ is the learning rate.}. See Appendix~\ref{app:derivations} for the full derivation.
 
 \subsubsection*{Youden's J Threshold}
-If our model produces a probability $P(\text{fake} | X = x)$ that any video is a deepfake, how do we interpret that probability? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores (what MLE or KDE outputs) could be systematically biased towards one side. A common solution to this is to calibrate your model, with a method such as Platt's scaling\footnote{Platt scaling fits a sigmoid function to the raw output scores of a classifier using a held-out calibration set, transforming them into calibrated probabilities that better reflect the true likelihood of each class.}. You want to calibrate your model such that its output probabilities reflect the actual distribution of reality. I was interested in finding a simpler solution, which only adjusted the threshold for classification and came across Youden's J Statistic. 
-
-Once we have our posterior probability estimates from Bayes' theorem, we must choose a decision threshold $\tau$ such 
-that we classify a video as a deepfake if $P(Y = 1 | \mathbf{x}) > \tau$. The naive choice of $\tau = 0.5$ is not 
-always optimal, particularly in the presence of class imbalance. Instead, we use Youden's J Statistic 
-\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.} to select the 
-threshold that best balances sensitivity and specificity:
+If our model produces a probability $P(\text{fake} | X = x)$, how do we decide what counts as ``fake''? A naive approach is to classify a video as fake if $P(\text{fake} | X = x) > 0.5$.\footnote{We used an even split of deepfakes and real videos in both training and test, so 0.5 makes sense here. If instead the split was 0.7 and 0.3 we might use a different default.} However our raw probability scores could be systematically biased towards one side. A common solution is to calibrate your model with a method such as Platt's scaling\footnote{Platt scaling fits a sigmoid function to the raw output scores of a classifier using a held-out calibration set, transforming them into calibrated probabilities that better reflect the true likelihood of each class.}. I was interested in a simpler fix and came across Youden's J Statistic\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.}, which selects the threshold $\tau$ that maximises:
 
 \begin{equation}
-J = \text{Sensitivity} + \text{Specificity} - 1 = \text{TPR} - \text{FPR}
+J = \text{TPR} - \text{FPR}
 \end{equation}
 
-where TPR (True Positive Rate) and FPR (False Positive Rate) are defined as:
-
-\begin{equation}
-\text{TPR} = \frac{TP}{TP + FN} \qquad \text{FPR} = \frac{FP}{FP + TN}
-\end{equation}
-
-The optimal threshold is then chosen as:
-
-\begin{equation}
-\hat{\tau} = \underset{\tau}{\text{arg max}} \ J(\tau) = \underset{\tau}{\text{arg max}} \ [\text{TPR}(\tau) - \text{FPR}(\tau)]
-\end{equation}
-
-Geometrically, this corresponds to finding the point on the ROC curve that is furthest from the diagonal line of 
-no-discrimination, maximizing the gap between our model's performance and random chance.
+Geometrically, this is the point on the ROC curve furthest from the diagonal of no-discrimination. See Appendix~\ref{app:derivations} for the full definitions and argmax formulation.
 
 \subsection*{Results}
 
@@ -379,6 +311,64 @@ The feature is the ratio of their variances:
 \]
 
 Higher $f_5$ means the face is sharper (or more artifact-laden) relative to the background. A log transform is applied at training time. $f_5$ was by far the strongest individual discriminator, achieving the best standalone AUC (0.683) of all five features.
+
+\newpage
+\section{Mathematical Derivations}
+\label{app:derivations}
+
+\subsection*{Normal MLE Estimation}
+A Gaussian has two parameters: $\mu = \theta_0$ and $\sigma^2 = \theta_1$.
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n f(X_i|\theta)
+= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\theta_1}}e^{-\frac{(x_i-\theta_0)^2}{2\theta_1}} \\
+LL(\theta) &= -\frac{n}{2}\log(2\pi\theta_1) - \frac{1}{2\theta_1}\sum_{i=1}^n(x_i - \theta_0)^2 \\
+\frac{\partial LL}{\partial \theta_0} = 0 &\implies \hat{\theta}_0 = \frac{1}{n}\sum_{i=1}^n x_i = \bar{x} \\
+\frac{\partial LL}{\partial \theta_1} = 0 &\implies \hat{\theta}_1 = \frac{1}{n}\sum_{i=1}^n(x_i - \bar{x})^2
+\end{aligned}
+\end{equation}
+
+\subsection*{Gamma MLE Estimation}
+A Gamma distribution has two parameters: $\alpha = \theta_0$ (shape) and $\beta = \theta_1$ (scale).
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n \frac{1}{\Gamma(\theta_0)\theta_1^{\theta_0}} x_i^{\theta_0-1} e^{-x_i/\theta_1} \\
+LL(\theta) &= -n\log\Gamma(\theta_0) - n\theta_0\log\theta_1 + (\theta_0-1)\sum_{i=1}^n\log x_i - \frac{1}{\theta_1}\sum_{i=1}^n x_i
+\end{aligned}
+\end{equation}
+There is no closed-form solution; parameters are estimated numerically via \verb|scipy.stats.gamma.fit|.
+
+\subsection*{Kernel Density Estimation --- Gaussian Kernel and Scott's Rule}
+The Gaussian kernel used in equation (7) of the main text is:
+\begin{equation}
+K(u) = \frac{1}{\sqrt{2\pi}} e^{-u^2/2}
+\end{equation}
+Scott's rule selects the bandwidth automatically:
+\begin{equation}
+h = n^{-1/5} \hat{\sigma}
+\end{equation}
+where $\hat{\sigma}$ is the sample standard deviation. Too small an $h$ leads to an overfit, noisy estimate; too large and the estimate is oversmoothed.
+
+\subsection*{Logistic Regression --- Bernoulli MLE}
+Assuming $Y \sim \text{Bern}(\sigma(\theta^T \mathbf{x}))$, the likelihood and log-likelihood are:
+\begin{equation}
+\begin{aligned}
+L(\theta) &= \prod_{i=1}^n \sigma(\theta^T \mathbf{x}^{(i)})^{y^{(i)}} \cdot \left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]^{(1-y^{(i)})} \\
+LL(\theta) &= \sum_{i=1}^n y^{(i)} \log \sigma(\theta^T \mathbf{x}^{(i)}) + (1 - y^{(i)}) \log\left[1 - \sigma(\theta^T \mathbf{x}^{(i)})\right]
+\end{aligned}
+\end{equation}
+Parameters are found by gradient descent: $\theta \leftarrow \theta - \alpha \nabla_\theta (-LL(\theta))$.
+
+\subsection*{Youden's J --- Full Definitions and Threshold Selection}
+TPR (True Positive Rate) and FPR (False Positive Rate) are defined as:
+\begin{equation}
+\text{TPR} = \frac{TP}{TP + FN} \qquad \text{FPR} = \frac{FP}{FP + TN}
+\end{equation}
+The optimal threshold is:
+\begin{equation}
+\hat{\tau} = \underset{\tau}{\text{arg max}} \ J(\tau) = \underset{\tau}{\text{arg max}} \ [\text{TPR}(\tau) - \text{FPR}(\tau)]
+\end{equation}
+Geometrically, this corresponds to finding the point on the ROC curve that is furthest from the diagonal line of no-discrimination, maximizing the gap between model performance and random chance.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
