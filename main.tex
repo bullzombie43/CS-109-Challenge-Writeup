@@ -5,6 +5,9 @@
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage[numbers]{natbib}
+\usepackage[margin=1in]{geometry}
+\usepackage{titling}
+\setlength{\droptitle}{-3em}
 \graphicspath{ {./images/} }
 
 
@@ -15,6 +18,7 @@
 \begin{document}
 
 \maketitle
+\vspace{-1em}
 
 If you have spent time on social media in the last few months you have almost certainly encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron \footnote{https://www.tiktok.com/@ikrrrrbwi81alt/video/7598717828409068855}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{It took <5 min to make a deepfake. I used an animated character but this could just as easily have been a person https://viggle.ai/share/436f2b0d-14e5-4705-9ea4-2078e33d2c76 } it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression, training and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
 
