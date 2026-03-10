@@ -11,9 +11,9 @@
 
 ## Unfilled Placeholders
 
-- [ ] Line 18 — `(I wonder what's the percentage is???)` — find a stat or remove
-- [ ] Line 18 — `\footnote{Find Link}` for LeBron video — add link or remove
-- [ ] Line 18 — `\footnote{Heres a deepfake I made...}` — cleaned up to descriptive text
+- [x] Line 18 — `(I wonder what's the percentage is???)` — find a stat or remove
+- [x] Line 18 — `\footnote{Find Link}` for LeBron video — add link or remove
+- [x] Line 18 — `\footnote{Heres a deepfake I made...}` — cleaned up to descriptive text
 - [x] Line 21 — `\footnote{add their citation}` for FaceForensics++ — Rössler et al., ICCV 2019
 - [x] Line 24 — `\footnote{what is DCT}` — added brief explanation
 - [x] Line 24 — `\footnote{what is MAD}` — added brief explanation
@@ -44,7 +44,7 @@
 
 - [x] **Move KDE section** — currently nested under Logistic Regression but KDE is used in Naive Bayes; move it there or make it top-level
 - [x] **Anchor Youden's J** — it floats without a clear parent section; make it a subsection of Naive Bayes or Results
-- [ ] **Explain why logistic regression handles correlated features better** — NB's independence assumption causes double-counting; logistic regression learns a single linear boundary without that assumption
+- [x] **Explain why logistic regression handles correlated features better** — NB's independence assumption causes double-counting; logistic regression learns a single linear boundary without that assumption
 - [x] **Add baseline comparisons to results tables** — random (≈50%), majority-class added to both tables with a second \hline
 - [x] **Add ROC curve figure** — added roc_comparison_all_methods.png (all methods), score_distribution_f5.png, and segmentation_test.png; clearpage added to keep figures before Future section
 - [x] **Write the features appendix** — ✅ Done
