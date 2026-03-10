@@ -3,7 +3,7 @@
 ## Critical Fixes
 
 - [x] **Add LLM usage disclosure** — project rules require explaining how you used GPT-4/LLMs
-- [ ] **Fill or delete empty `Arg Max` section** (line 101) — likely intended to show the final argmax decision combining prior + likelihoods
+- [x] **Fill or delete empty `Arg Max` section** (line 101) — likely intended to show the final argmax decision combining prior + likelihoods
 - [x] **Fix dataset size** (line 251) — says "100 deepfakes and 100 real" but actual is 200 real + 200 deepfake (400 total), ~320 train / 80 test
 - [x] **Fix math typo** (line 30) — `P(Y = | X = X)` → `P(Y = y | X = x)`
 

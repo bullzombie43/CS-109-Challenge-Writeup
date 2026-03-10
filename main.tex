@@ -131,8 +131,6 @@ directly in place of the parametric PDF from MLE to compute $P(X_i = x_i \mid Y 
 
 While it was outside the scope of CS109, I was curious how KDE would perform compared to the MLE approach for Naive Bayes, as our data does not seem to follow any clean parametric family. I used \verb|sklearn.neighbors.KernelDensity| with \verb|kernel='gaussian'| and \verb|bandwidth='scott'|.
 
-\subsubsection*{Arg Max}
-
 \subsection*{Logistic Regression}
 Logistic regression is also a classification algorithm. It makes the central assumption that $P(y|x)$ can be approximated with a sigmoid function applied to a linear combination of input features. 
 \begin{equation}
