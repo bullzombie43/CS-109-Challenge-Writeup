@@ -97,63 +97,29 @@ Geometrically, this is the point on the ROC curve furthest from the diagonal of 
 
 \subsection*{Results}
 
-\subsubsection*{f5 only:}
-
   \begin{table}[h]
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccc}
   \hline
-  \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} &
-  \textbf{Recall} & \textbf{F1} \\
+  & \multicolumn{2}{c}{\textbf{f5 only}} & \multicolumn{2}{c}{\textbf{All 5 features}} \\
+  \textbf{Method} & \textbf{Acc} & \textbf{AUC} & \textbf{Acc} & \textbf{AUC} \\
   \hline
-  KDE-NB          & \textbf{0.688} & \textbf{0.683} & \textbf{0.742} & 0.575 &
-  0.648 \\
-  Logistic Reg.   & 0.588 & 0.680 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
-  Gaussian NB     & 0.588 & 0.680 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
-  Gamma NB        & 0.588 & 0.671 & 0.559 & \textbf{0.825} & \textbf{0.667} \\
+  KDE-NB        & \textbf{0.688} & 0.683 & 0.637 & 0.670 \\
+  Logistic Reg. & 0.588 & 0.680 & \textbf{0.688} & \textbf{0.720} \\
+  Gaussian NB   & 0.588 & 0.680 & 0.600 & 0.666 \\
+  Gamma NB      & 0.588 & 0.671 & 0.588 & 0.655 \\
   \hline
-  Majority class  & 0.500 & 0.500 & 0.500 & 1.000 & 0.667 \\
-  Random          & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 \\
-  \hline
-  \end{tabular}
-  \caption{Results comparison — f5 only (n=80 test videos). \textit{Accuracy}: fraction correctly classified. \textit{AUC}: area under the ROC curve, measures ranking ability independent of threshold. \textit{Precision}: of predicted fakes, fraction truly fake. \textit{Recall}: of all true fakes, fraction caught. \textit{F1}: harmonic mean of precision and recall. Baselines: \textit{Majority class} always predicts ``fake''; \textit{Random} flips a fair coin per video. See Appendix~\ref{app:figures} for confusion matrices and ROC curves.}
-  \label{tab:results_f5}
-  \end{table}
-
-\subsubsection*{All 5 features:}
-
-  \begin{table}[h]
-  \centering
-  \begin{tabular}{lccccc}
-  \hline
-  \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} &
-  \textbf{Recall} & \textbf{F1} \\
-  \hline
-  Logistic Reg.   & \textbf{0.688} & \textbf{0.720} & \textbf{0.674} &
-  \textbf{0.725} & \textbf{0.699} \\
-  KDE-NB          & 0.637 & 0.670 & 0.628 & 0.675 & 0.651 \\
-  Gaussian NB     & 0.600 & 0.666 & 0.580 & 0.725 & 0.644 \\
-  Gamma NB        & 0.588 & 0.655 & 0.569 & 0.725 & 0.637 \\
-  \hline
-  Majority class  & 0.500 & 0.500 & 0.500 & 1.000 & 0.667 \\
-  Random          & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 \\
+  Majority class & 0.500 & 0.500 & 0.500 & 0.500 \\
+  Random         & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 & $\approx$0.500 \\
   \hline
   \end{tabular}
-  \caption{Results comparison — all 5 features (n=80 test videos). Baselines as defined in Table~\ref{tab:results_f5}.}
-  \label{tab:results_all5}
+  \caption{Accuracy and AUC\protect\footnote{AUC (Area Under the ROC Curve) measures ranking ability --- the probability the model scores a fake higher than a real --- independently of any threshold. \textit{Majority class} always predicts ``fake''; \textit{Random} flips a fair coin. See Appendix~\ref{app:figures} for confusion matrices and ROC curves.} on 80 test videos (320 train), split evenly between real and fake.}
+  \label{tab:results}
   \end{table}
 
+I tested each method on two feature configurations: f5 alone --- our strongest individual feature\footnote{f5 is the Laplacian variance ratio, the variance of the Laplacian filter response in the face region divided by that of the background. See Appendix~\ref{app:features} for the full derivation.} --- and all 5 together. For f5-only, KDE-NB leads on accuracy (0.688) while all three NB variants share nearly identical AUC, confirming that KDE's gain comes from better-calibrated probability estimates rather than improved class separation\footnote{AUC measures ranking ability independently of any threshold. Two models with the same AUC order videos identically; what differs is the absolute probability values they assign. KDE's better-fit densities push fake scores closer to 1 and real scores closer to 0, so the Youden's J threshold lands in a cleaner spot.} --- KDE simply places the decision threshold better.
 
-
-I divided the results into two categories, one only using f5\footnote{f5 is the Laplacian variance ratio --- the variance of the Laplacian filter response in the face region divided by that of the background. See the Feature Descriptions appendix for the full derivation.}, and one using all 5 features. f5 was shown to be our most discriminating feature by far\footnote{As measured by AUC (Area Under the ROC Curve): f5 achieved a standalone AUC of 0.683, the highest of all five features.}, so I thought it would be interesting to examine how it would perform independently of the other features. 
-
-In both categories the KDE version of our Naive Bayes model performed better than both the Gaussian and Gamma model, validating our assumption that the data did not fit either parametric model particularly well. Importantly, all 3 methods have nearly identical AUC, suggesting the improvement does not come from the ability to distinguish between classes\footnote{AUC measures ranking ability --- the probability that the model scores a fake video higher than a real one --- independently of any threshold. Two models with the same AUC order videos identically; what differs is the absolute probability values they assign. KDE's better-calibrated densities push fakes closer to 1 and reals closer to 0, so the Youden's J threshold lands in a cleaner spot.}, but rather from the classification cutoff. 
-
-Interestingly, depending on our feature set (f5 or all) we have two different top methods, both with an accuracy of 0.688: KDE-NB for just f5 and Logistic Regression for all 5 features. The loss in accuracy, 0.051, of KDE-NB when we introduce all the features suggests that the independence assumption of Naive Bayes may be heavily violated --- our features are highly related, to such an extent that including other features reduces our accuracy noticeably. Looking at Figure~\ref{fig:confusion_matrices_all_methods} we can see that we have a nearly doubled false positive rate when including all features for KDE-NB, which makes sense as the independence assumption means we are essentially double counting the likelihood of each feature. 
-
-Logistic regression does not have this issue. It doesn't assume each feature independent but rather that the probability can be approximated by sigmoid instead, which is why it performed significantly better with all features compared to just one. With a single feature, logistic regression is very similar to Gaussian NB, even equivalent if the variances of both classes are identical, which is likely why it performs nearly identically to Gaussian NB with only f5. 
-
-Overall, while KDE-NB and Logistic Regression have the same accuracy, I give the edge to logistic regression based on its higher ($0.037$) AUC, indicating it has a stronger ability to distinguish between classes, and that it might perform better than KDE-NB on a larger testing set.  
+With all 5 features the picture flips: Logistic Regression takes the top spot (0.688 accuracy, 0.720 AUC) while KDE-NB drops by 0.051. The NB independence assumption is heavily violated --- our features are correlated, so each additional feature double-counts evidence and inflates the false positive rate (see Figure~\ref{fig:confusion_matrices_all_methods}). Logistic regression avoids this by learning a single linear decision boundary over all features rather than multiplying independent likelihoods. With only one feature the two approaches are nearly equivalent --- logistic regression reduces to Gaussian NB when class variances are equal --- which explains their identical f5-only scores. Overall I give the edge to logistic regression: its 0.037 AUC advantage suggests stronger ranking ability that would likely widen on a larger test set.
 
 
 \subsection*{The Future of Deepfake Detection}
