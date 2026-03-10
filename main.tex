@@ -23,7 +23,7 @@
 If you have spent time on social media in the last few months you have almost certainly encountered a variety of AI generated images and videos.  Maybe you've seen a video of your English teacher dunking on Lebron \footnote{https://www.tiktok.com/@ikrrrrbwi81alt/video/7598717828409068855}, or perhaps an altered image posted by our White House\footnote{https://www.theguardian.com/us-news/2026/jan/22/white-house-ice-protest-arrest-altered-image}. With apps like Viggle Ai\footnote{It took <5 min to make a deepfake. I used an animated character but this could just as easily have been a person https://viggle.ai/share/436f2b0d-14e5-4705-9ea4-2078e33d2c76 } it is easier than ever to create and promote deepfaked images and videos of people. While these videos, when clearly false, can be very amusing, they are also capable of great societal harm. In this paper I explore and compare a few methods of detecting deepfakes via techniques covered in CS109: Naive Bayes and Logistic Regression, training and testing on the FaceForensics++~\cite{rossler2019faceforensics} benchmark dataset.
 
 \subsection*{Qualities of a Deepfake}
-Deepfaked videos, while difficult to spot with the human eye, often leave traces that computers can pick up on --- differences in compression artifacts, sharpness, and color grading between the synthetic face region and the unmodified background. For every video I extracted 5 features exploiting these differences (see Appendix~\ref{app:features} for full details).
+Deepfaked videos, while difficult to spot with the human eye, often leave traces that computers can pick up on. FaceSwap works by detecting the face in each frame, independently estimating a warp, synthesizing a new face, and blending it onto the background. This pipeline introduces three categories of artifact: the face region is re-encoded separately from the background (leaving different compression fingerprints), the per-frame warp introduces small jitter across frames that a real face would not have, and the blending step applies sharpening that makes the face region abnormally crisp relative to the unmodified background. For every video I extracted 5 features targeting these differences (see Appendix~\ref{app:features} for full details), trained on 320 videos (200 real, 200 FaceSwap c0 from FaceForensics++\cite{rossler2019faceforensics}) and tested on 80, using a stratified video-level 80/20 split so that frames from the same video never appear in both sets.
 
 \subsection*{Naive Bayes}
 Naive Bayes was a natural first choice for this problem: my dataset is small (320 training videos), the algorithm is interpretable, and each feature captures a distinct artifact type --- compression differences, sharpness, temporal jitter --- so the independence assumption is at least defensible. The classifier works by choosing the label $y$ that maximises $P(Y = y \mid X = x)$, breaking the joint likelihood into a product of per-feature terms (one distribution per feature per class) and comparing them in log-space. See Appendix~\ref{app:derivations} for the full derivation.\footnote{Throughout, $y \in \{0, 1\}$: 0 = real, 1 = deepfake.}
@@ -49,7 +49,7 @@ where $K$ is a Gaussian kernel and $h$ is the bandwidth, set automatically via S
 After running Naive Bayes I wanted to see whether relaxing the independence assumption would help. My five features all capture compression and sharpness artifacts, so they are inevitably correlated --- Naive Bayes double-counts that shared evidence every time a new feature is added. Logistic regression learns a single linear decision boundary directly over all features jointly, avoiding this problem entirely. It assumes the outcome is Bernoulli and maximises the resulting log-likelihood via gradient descent; since no closed-form solution exists, weights are estimated numerically. See Appendix~\ref{app:derivations} for the full derivation.
 
 \subsubsection*{Youden's J Threshold}
-Both methods output a probability $P(\text{fake} \mid X = x)$, and I noticed the raw scores were not well-centered at 0.5 --- using a fixed 0.5 cutoff was leaving performance on the table. Rather than a full calibration procedure like Platt's scaling\footnote{Platt scaling fits a sigmoid to the raw output scores on a held-out calibration set.}, I used Youden's J Statistic\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.}: sweep every candidate threshold on the training scores and pick the one that maximises
+All four methods output a probability $P(\text{fake} \mid X = x)$, and I applied a shared threshold-calibration step to each. When a model's scores are systematically biased toward one end of $[0, 1]$, a fixed 0.5 cutoff misclassifies borderline cases that the scores' own natural separation could resolve --- in practice I found this left meaningful accuracy on the table. Rather than a full calibration procedure like Platt's scaling\footnote{Platt scaling fits a sigmoid to the raw output scores on a held-out calibration set.}, I used Youden's J Statistic\footnote{Youden, W.J. (1950). Index for rating diagnostic tests. \textit{Cancer}, 3(1), 32--35.}: sweep every candidate threshold on the training scores and pick the one that maximises
 
 \begin{equation}
 J = \text{TPR} - \text{FPR}
@@ -79,9 +79,9 @@ Geometrically, this is the point on the ROC curve furthest from the diagonal of 
   \label{tab:results}
   \end{table}
 
-I tested each method on two feature configurations: f5 alone --- our strongest individual feature\footnote{f5 is the Laplacian variance ratio, the variance of the Laplacian filter response in the face region divided by that of the background. See Appendix~\ref{app:features} for the full derivation.} --- and all 5 together. For f5-only, KDE-NB leads on accuracy (0.688) while all three NB variants share nearly identical AUC, confirming that KDE's gain comes from better-calibrated probability estimates rather than improved class separation\footnote{AUC measures ranking ability independently of any threshold. Two models with the same AUC order videos identically; what differs is the absolute probability values they assign. KDE's better-fit densities push fake scores closer to 1 and real scores closer to 0, so the Youden's J threshold lands in a cleaner spot.} --- KDE simply places the decision threshold better.
+I tested each method on two feature configurations: f5 alone --- our strongest individual feature\footnote{f5 is the Laplacian variance ratio, the variance of the Laplacian filter response in the face region divided by that of the background. See Appendix~\ref{app:features} for the full derivation.} --- and all 5 together. For f5-only, KDE-NB leads on both accuracy (0.688) and AUC (0.683), modestly outperforming Gaussian NB (0.680) and Gamma NB (0.671). The AUC gap is small, suggesting the large accuracy difference (0.688 vs.\ 0.588) is driven primarily by better probability calibration rather than improved class separation.\footnote{AUC measures ranking ability independently of any threshold. Because KDE fits the actual density shape more faithfully, it pushes fake scores closer to 1 and real scores closer to 0, so the Youden's J threshold lands in a cleaner spot --- yielding higher accuracy without requiring a meaningfully better ranking.}
 
-With all 5 features the picture flips: Logistic Regression takes the top spot (0.688 accuracy, 0.720 AUC) while KDE-NB drops by 0.051. The NB independence assumption is heavily violated --- our features are correlated, so each additional feature double-counts evidence and inflates the false positive rate (see Figure~\ref{fig:confusion_matrices_all_methods}). Logistic regression avoids this by learning a single linear decision boundary over all features rather than multiplying independent likelihoods. With only one feature the two approaches are nearly equivalent --- logistic regression reduces to Gaussian NB when class variances are equal --- which explains their identical f5-only scores. Overall I give the edge to logistic regression: its 0.037 AUC advantage suggests stronger ranking ability that would likely widen on a larger test set.
+With all 5 features the picture flips: Logistic Regression takes the top spot (0.688 accuracy, 0.720 AUC) while KDE-NB drops by 0.051. The NB independence assumption is heavily violated --- our features are correlated, so each additional feature double-counts evidence and inflates the false positive rate (see Figure~\ref{fig:confusion_matrices_all_methods}). Logistic regression avoids this by learning a single linear decision boundary over all features rather than multiplying independent likelihoods. With only one feature, Logistic Regression and Gaussian NB produce identical scores (0.588 accuracy, 0.680 AUC) --- both are outperformed by KDE-NB, which achieves 0.688 accuracy on the same feature. This confirms that with a single feature the bottleneck is density estimation quality, not the classifier form. Overall I give the edge to logistic regression: its 0.037 AUC advantage suggests stronger ranking ability that would likely widen on a larger test set.
 
 
 \subsection*{The Future of Deepfake Detection}
@@ -108,7 +108,7 @@ For every video in the dataset I extract 5 scalar features. Each feature compare
   Q_k = \frac{\text{count}(\text{background coefficients in bin } k)}{\text{total background coefficients}}
 \]
 
-The chi-squared divergence between these two distributions is the feature:
+The symmetric chi-squared divergence\footnote{The standard chi-squared divergence uses only $Q_k$ in the denominator. Using $P_k + Q_k$ makes the measure symmetric in $P$ and $Q$, which is preferable here since neither the face nor the background is a fixed reference distribution.} between these two distributions is the feature:
 
 \[
   f_1 = \chi^2(P, Q) = \sum_{k=1}^{50} \frac{(P_k - Q_k)^2}{P_k + Q_k + \varepsilon}
@@ -125,6 +125,8 @@ A log transform ($\log(1 + f_1)$) is applied at training time to correct the hea
 \[
   \beta_j = \frac{\text{std}(\{c_{b,j} : b = 1,\ldots,B\})}{\sqrt{2}}, \quad j = 1, \ldots, 63
 \]
+
+where the $\sqrt{2}$ normalisation gives the scale parameter of a zero-mean Laplace distribution\footnote{For a zero-mean Laplace distribution with scale $b$, the standard deviation is $b\sqrt{2}$, so $b = \text{std}/\sqrt{2}$. DCT AC coefficients across blocks are empirically well-approximated by a Laplace distribution, following Giudice et al.\ (2021).}, the distribution that empirically fits DCT coefficients well.
 
 This gives two 63-dimensional vectors, $\boldsymbol{\beta}^{\text{face}}$ and $\boldsymbol{\beta}^{\text{bg}}$. The feature is the mean absolute difference across all positions:
 
@@ -231,6 +233,23 @@ Higher $f_5$ means the face is sharper (or more artifact-laden) relative to the 
 \newpage
 \section{Mathematical Derivations}
 \label{app:derivations}
+
+\subsection*{Naive Bayes Derivation}
+With any classification algorithm ($y \in \{0,1\}$) we seek the label that maximises $P(Y = y \mid X = x)$:
+\begin{equation}
+\begin{aligned}
+\hat y &= \text{arg max} \ P(Y = y | X = x) \\
+&= \text{arg max} \ \frac{P(Y = y)P(X = x | Y = y)}{P(X = x)} \\
+&= \text{arg max} \ P(Y = y)P(X = x | Y = y) \quad \text{(since $P(X=x)$ is constant w.r.t.\ $Y$)}
+\end{aligned}
+\end{equation}
+Naive Bayes assumes each feature $x_i$ is independent of the others given $y$, factorising the joint likelihood into a product of per-feature terms:
+\begin{equation}
+\begin{aligned}
+\hat y &= \text{arg max} \ P(Y = y)\prod_i P(X_i = x_i | Y = y) \\
+&= \text{arg max} \ \log P(Y = y) + \sum_i \log P(X_i = x_i | Y = y)
+\end{aligned}
+\end{equation}
 
 \subsection*{Normal MLE Estimation}
 A Gaussian has two parameters: $\mu = \theta_0$ and $\sigma^2 = \theta_1$.
